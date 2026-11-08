@@ -49,7 +49,7 @@ let weapon:Weapon='ARC',mag:Record<Weapon,number>={ARC:12,BREACH:6,RAIL:4},reser
 const weaponData:Record<Weapon,{name:string;damage:number;rate:number;reload:number;spread:number;size:number}>={ARC:{name:'ARC PISTOL',damage:28,rate:.19,reload:1.1,spread:.006,size:12},BREACH:{name:'BREACH SHOTGUN',damage:17,rate:.72,reload:1.5,spread:.075,size:6},RAIL:{name:'RAIL PRECISION',damage:105,rate:1.05,reload:1.8,spread:0,size:4}};
 let enemies:Enemy[]=[];
 const keys=new Set<string>(),velocity=new THREE.Vector3(),position=new THREE.Vector3(0,1.7,8),forward=new THREE.Vector3(),right=new THREE.Vector3(),move=new THREE.Vector3();
-let yaw=0,pitch=0,grounded=false,sliding=false,slideTime=0,slideCooldown=0,landingKick=0,wasGrounded=true,wallrun=0,wallSide=0,settingsReturn:Mode='menu',coyote=0,jumpBuffer=0,grapple:THREE.Vector3|null=null,grappleCD=0,fireCD=0,reloadTime=0,overdrive=0,ability=100,noticeTime=0,walkPhase=0;
+let yaw=0,pitch=0,grounded=false,sliding=false,slideTime=0,slideCooldown=0,slideNeedsRelease=false,landingKick=0,wasGrounded=true,wallrun=0,wallSide=0,settingsReturn:Mode='menu',coyote=0,jumpBuffer=0,grapple:THREE.Vector3|null=null,grappleCD=0,fireCD=0,reloadTime=0,overdrive=0,ability=100,noticeTime=0,walkPhase=0;
 const ray=new THREE.Raycaster(),clock=new THREE.Clock();
 const visualEffects:{object:THREE.Object3D;life:number}[]=[];
 function addTracer(from:THREE.Vector3,to:THREE.Vector3,color:number=0xffb15e,life=.13){const geo=new THREE.BufferGeometry().setFromPoints([from,to]);const line=new THREE.Line(geo,new THREE.LineBasicMaterial({color,transparent:true,opacity:.95,depthTest:false}));line.renderOrder=20;scene.add(line);visualEffects.push({object:line,life});}
@@ -207,7 +207,8 @@ function movePlayer(dt:number){
  const sprint=keys.has('ShiftLeft')||keys.has('ShiftRight');
  const hs=Math.hypot(velocity.x,velocity.z);
  // A slide is a deliberate momentum move, not simply a slower sprint.
- if(sprint&&grounded&&move.lengthSq()>.1&&hs>6.5&&!sliding&&slideCooldown<=0){sliding=true;slideTime=.82;velocity.x*=1.13;velocity.z*=1.13;sound(105,.11,'triangle',.035);note('SLIDE // KEEP YOUR MOMENTUM');}
+ if(!sprint)slideNeedsRelease=false;
+ if(sprint&&!slideNeedsRelease&&grounded&&move.lengthSq()>.1&&hs>6.5&&!sliding&&slideCooldown<=0){sliding=true;slideNeedsRelease=true;slideTime=.82;velocity.x*=1.13;velocity.z*=1.13;sound(105,.11,'triangle',.035);note('SLIDE // KEEP YOUR MOMENTUM');}
  if(sliding){slideTime-=dt;if(slideTime<=0||!grounded){sliding=false;slideCooldown=.22;}}
  if(slideCooldown>0)slideCooldown=Math.max(0,slideCooldown-dt);
  const accel=grounded?(sliding?5.5:sprint?38:29):9.5;
@@ -237,7 +238,7 @@ function movePlayer(dt:number){
  const next=position.clone().addScaledVector(velocity,dt),horizontal=next.clone();horizontal.y=position.y;
  if(!collides(horizontal)){position.x=next.x;position.z=next.z;}
  else{velocity.x*=sliding?.55:.22;velocity.z*=sliding?.55:.22;sliding=false;}
- const y=position.y+velocity.y*dt;let support:THREE.Box3|undefined;
+ const fallSpeed=Math.abs(velocity.y),y=position.y+velocity.y*dt;let support:THREE.Box3|undefined;
  if(velocity.y<=0){
    const feet=position.y-1.7,nextFeet=y-1.7;
    support=colliders.find(c=>position.x>c.min.x-.34&&position.x<c.max.x+.34&&position.z>c.min.z-.34&&position.z<c.max.z+.34&&feet>=c.max.y-.06&&nextFeet<=c.max.y&&c.max.y>=0);
@@ -246,7 +247,7 @@ function movePlayer(dt:number){
  if(support){position.y=support.max.y+1.7;landed=!grounded;velocity.y=0;grounded=true;coyote=.13;}
  else if(y<=1.7){position.y=1.7;landed=!grounded;velocity.y=0;grounded=true;coyote=.13;}
  else{position.y=y;grounded=false;coyote=Math.max(0,coyote-dt);}
- if(landed&&wasGrounded===false){landingKick=Math.min(.16,Math.abs(velocity.y)*.009);sound(95,.055,'triangle',.018);}
+ if(landed&&wasGrounded===false){landingKick=Math.min(.16,fallSpeed*.009);sound(95,.055,'triangle',.018);}
  wasGrounded=grounded;
  if(position.y< -8)hurt(100);
  // Keep the player inside the actual arena walls, not an arbitrary 40m sub-area.
