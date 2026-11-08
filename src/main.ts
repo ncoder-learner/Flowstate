@@ -63,6 +63,19 @@ const playerShot=new THREE.Line(shotGeometry,shotMaterial);playerShot.renderOrde
 const muzzleFlash=new THREE.Mesh(new THREE.SphereGeometry(.12,8,6),new THREE.MeshBasicMaterial({color:0xffc078,transparent:true,opacity:0,depthWrite:false}));muzzleFlash.visible=false;viewModel.add(muzzleFlash);muzzleFlash.position.set(.12,.02,-.78);
 let playerShotLife=0,muzzleLife=0;
 function addTracer(from:THREE.Vector3,to:THREE.Vector3,color:number=0xffb15e,life=.2){const glowGeo=new THREE.BufferGeometry().setFromPoints([from,to]);const glow=new THREE.Line(glowGeo,new THREE.LineBasicMaterial({color:0xff7138,transparent:true,opacity:.32,depthTest:false}));glow.renderOrder=19;scene.add(glow);visualEffects.push({object:glow,life});const geo=new THREE.BufferGeometry().setFromPoints([from,to]);const line=new THREE.Line(geo,new THREE.LineBasicMaterial({color,transparent:true,opacity:1,depthTest:false}));line.renderOrder=20;scene.add(line);visualEffects.push({object:line,life});}
+function addDeathBurst(at:THREE.Vector3,color:number){
+ const group=new THREE.Group();group.position.copy(at);group.userData.effect='death-burst';
+ const ring=new THREE.Mesh(new THREE.TorusGeometry(.42,.055,6,20),new THREE.MeshBasicMaterial({color,transparent:true,opacity:.95}));
+ ring.rotation.x=Math.PI/2;ring.position.y=.8;group.add(ring);
+ for(let i=0;i<12;i++){
+   const a=i/12*Math.PI*2,len=.8+Math.random()*.9;
+   const from=new THREE.Vector3(Math.cos(a)*.18,.8+Math.random()*.35,Math.sin(a)*.18);
+   const to=new THREE.Vector3(Math.cos(a)*len,.8+(Math.random()-.5)*.8,Math.sin(a)*len);
+   const line=new THREE.Line(new THREE.BufferGeometry().setFromPoints([from,to]),new THREE.LineBasicMaterial({color,transparent:true,opacity:.95}));
+   group.add(line);
+ }
+ scene.add(group);visualEffects.push({object:group,life:.42});
+}
 function launchEnemyProjectile(from:THREE.Vector3,target:THREE.Vector3,speed:number,damage:number){
  const direction=target.clone().sub(from).normalize();
  const mesh=new THREE.Mesh(new THREE.SphereGeometry(.28,10,8),new THREE.MeshBasicMaterial({color:0xff315b}));
@@ -191,7 +204,7 @@ function start(training=false,daily=false){stage=1;score=0;kills=0;hp=100;combo=
 function endRun(){save.highestStage=Math.max(save.highestStage,stage);save.highestScore=Math.max(save.highestScore,Math.floor(score));save.kills+=kills;save.distance+=Math.floor(distance);save.longestCombo=Math.max(save.longestCombo,bestCombo);save.highestSpeed=Math.max(save.highestSpeed,bestSpeed);persist();$('#deathcopy').textContent='STAGE '+stage+' // SCORE '+Math.floor(score).toLocaleString()+' // '+kills+' ELIMINATIONS // BEST FLOW x'+bestCombo.toFixed(1)+'. PERSONAL BEST: '+save.highestScore.toLocaleString()+'.';ui('dead');}
 function nextStage(){stage++;score+=stage*100;hp=Math.min(100,hp+15);mag.ARC=Math.min(12,mag.ARC+5);mag.BREACH=Math.min(6,mag.BREACH+2);mag.RAIL=Math.min(4,mag.RAIL+1);buildArena();note('SECTOR '+String(stage).padStart(2,'0')+' // INCOMING');updateObjective();}
 function hurt(n:number){if(mode!=='playing'||hurtIFrames>0)return;hurtIFrames=.72;hp-=n;$('#hud').classList.add('taking-damage');setTimeout(()=>$('#hud').classList.remove('taking-damage'),180);sound(65,.13,'sawtooth',.06);if(hp<=0)endRun();hud();}
-function damage(e:Enemy,n:number){e.hp-=n;const bonus=Math.floor(velocity.length()*1.8)+(grounded?0:35)+(sliding?25:0)+(grapple?50:0);score+=Math.round(n*.35+bonus)*combo;if(e.hp<=0){e.alive=false;foes.remove(e.root);kills++;combo=Math.min(8,combo+.35);comboTime=4.5;bestCombo=Math.max(bestCombo,combo);score+=Math.round((100+bonus)*combo);note((velocity.length()>13?'KINETIC ELIMINATION':!grounded?'AIRBORNE ELIMINATION':'HOSTILE NEUTRALIZED')+'  +'+Math.round((100+bonus)*combo));sound(520,.13,'triangle',.05);if(e.boss){save.bossesDefeated++;$('#bossbar').classList.add('hidden');}}else sound(160,.035,'square',.02);hud();}
+function damage(e:Enemy,n:number){e.hp-=n;e.root.scale.setScalar(1.1);const bonus=Math.floor(velocity.length()*1.8)+(grounded?0:35)+(sliding?25:0)+(grapple?50:0);score+=Math.round(n*.35+bonus)*combo;if(e.hp<=0){e.alive=false;addDeathBurst(e.root.position,({RUNNER:0xff7048,SNIPER:0x72c9ff,TANK:0xffb36b,DRONE:0xc29aff,INTERCEPTOR:0xffa04a} as Record<Kind,number>)[e.kind]);foes.remove(e.root);kills++;combo=Math.min(8,combo+.35);comboTime=4.5;bestCombo=Math.max(bestCombo,combo);score+=Math.round((100+bonus)*combo);note((velocity.length()>13?'KINETIC ELIMINATION':!grounded?'AIRBORNE ELIMINATION':'HOSTILE NEUTRALIZED')+'  +'+Math.round((100+bonus)*combo));sound(520,.13,'triangle',.05);if(e.boss){save.bossesDefeated++;$('#bossbar').classList.add('hidden');}}else sound(160,.035,'square',.02);hud();}
 function shoot(){
  if(fireCD>0||reloadTime>0)return;
  if(mag[weapon]<=0){note('MAG EMPTY // PRESS R TO RELOAD');$('#ammo').classList.add('ammo-low');reload();return;}
@@ -221,6 +234,7 @@ function grappleStart(){if(grappleCD>0)return;const d=new THREE.Vector3();camera
 function updateEnemies(dt:number){
  for(const e of enemies){
    if(!e.alive)continue;
+   e.root.scale.setScalar(THREE.MathUtils.damp(e.root.scale.x,1,14,dt));
    const p=e.root.position,d=position.clone().sub(p),dist=d.length();e.cool-=dt;
    if(e.kind==='DRONE'){
      p.y=3+Math.sin(performance.now()*.001+e.root.id)*.8;
@@ -310,7 +324,7 @@ function movePlayer(dt:number){
 }
 function update(dt:number){
  if(mode!=='playing'&&mode!=='training')return;
- for(let i=visualEffects.length-1;i>=0;i--){const fx=visualEffects[i];fx.life-=dt;if(fx.life<=0){scene.remove(fx.object);if(fx.object instanceof THREE.Line){fx.object.geometry.dispose();(fx.object.material as THREE.Material).dispose();}visualEffects.splice(i,1);}}
+ for(let i=visualEffects.length-1;i>=0;i--){const fx=visualEffects[i];fx.life-=dt;if(fx.object.userData.effect==='death-burst'){const t=1-fx.life/.42;fx.object.scale.setScalar(1+t*1.7);fx.object.rotation.y+=dt*2.4;fx.object.traverse(o=>{if(o instanceof THREE.Line){(o.material as THREE.LineBasicMaterial).opacity=Math.max(0,fx.life/.42);}else if(o instanceof THREE.Mesh){(o.material as THREE.MeshBasicMaterial).opacity=Math.max(0,fx.life/.42);}});}if(fx.life<=0){scene.remove(fx.object);fx.object.traverse(o=>{if(o instanceof THREE.Mesh||o instanceof THREE.Line){o.geometry.dispose();const mats=Array.isArray(o.material)?o.material:[o.material];mats.forEach(m=>m.dispose());}});visualEffects.splice(i,1);}}
  if(playerShotLife>0){playerShotLife-=dt;if(playerShotLife<=0)playerShot.visible=false;}
  if(muzzleLife>0){muzzleLife-=dt;muzzleFlash.material.opacity=Math.max(0,muzzleLife/.055);if(muzzleLife<=0)muzzleFlash.visible=false;}
  if(noticeTime>0){noticeTime-=dt;if(noticeTime<=0)$('#notice').textContent='';}
