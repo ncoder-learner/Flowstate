@@ -43,7 +43,7 @@ const orangeMat=new THREE.MeshStandardMaterial({color:0xff6b35,emissive:0x8b260b
 const blueMat=new THREE.MeshStandardMaterial({color:0x4e9acb,emissive:0x153b5b,emissiveIntensity:1.1});
 const box=new THREE.BoxGeometry(1,1,1),colliders:THREE.Box3[]=[];
 function block(x:number,y:number,z:number,sx:number,sy:number,sz:number,mat:THREE.Material,solid=true){const m=new THREE.Mesh(box,mat);m.position.set(x,y,z);m.scale.set(sx,sy,sz);world.add(m);if(solid)colliders.push(new THREE.Box3().setFromObject(m));return m;}
-function clear(g:THREE.Group){for(const o of [...g.children]){g.remove(o);}}
+function clear(g:THREE.Group){const disposed=new Set<THREE.Material>();for(const o of [...g.children]){g.remove(o);o.traverse(child=>{if(child instanceof THREE.Mesh){if(child.geometry!==box)child.geometry.dispose();const mats=Array.isArray(child.material)?child.material:[child.material];for(const mat of mats){if(![floorMat,wallMat,darkMat,orangeMat,blueMat,gunDark,gunEdge,gunAccent,gunBlue,hitProxyMaterial].includes(mat)&&!disposed.has(mat)){mat.dispose();disposed.add(mat);}}}});}}
 let mode:Mode='menu',stage=1,score=0,kills=0,hp=100,combo=1,bestCombo=1,comboTime=0,distance=0,bestSpeed=0,hurtIFrames=0;
 let weapon:Weapon='ARC',mag:Record<Weapon,number>={ARC:12,BREACH:6,RAIL:4},reserve:Record<Weapon,number>={ARC:72,BREACH:30,RAIL:20};
 const weaponData:Record<Weapon,{name:string;damage:number;rate:number;reload:number;spread:number;size:number}>={ARC:{name:'ARC PISTOL',damage:28,rate:.19,reload:1.1,spread:.006,size:12},BREACH:{name:'BREACH SHOTGUN',damage:17,rate:.72,reload:1.5,spread:.075,size:6},RAIL:{name:'RAIL PRECISION',damage:105,rate:1.05,reload:1.8,spread:0,size:4}};
@@ -60,7 +60,7 @@ const muzzleFlash=new THREE.Mesh(new THREE.SphereGeometry(.12,8,6),new THREE.Mes
 let playerShotLife=0,muzzleLife=0;
 function addTracer(from:THREE.Vector3,to:THREE.Vector3,color:number=0xffb15e,life=.13){const geo=new THREE.BufferGeometry().setFromPoints([from,to]);const line=new THREE.Line(geo,new THREE.LineBasicMaterial({color,transparent:true,opacity:.95,depthTest:false}));line.renderOrder=20;scene.add(line);visualEffects.push({object:line,life});}
 function note(t:string){$('#notice').textContent=t;noticeTime=1.8;}
-function sound(freq:number,dur=.08,type:OscillatorType='sawtooth',vol=.035){try{const c=new AudioContext(),o=c.createOscillator(),g=c.createGain();o.type=type;o.frequency.value=freq;g.gain.setValueAtTime(vol,c.currentTime);g.gain.exponentialRampToValueAtTime(.001,c.currentTime+dur);o.connect(g);g.connect(c.destination);o.start();o.stop(c.currentTime+dur);o.onended=()=>c.close();}catch{}}
+let audioContext:AudioContext|null=null;function sound(freq:number,dur=.08,type:OscillatorType='sawtooth',vol=.035){try{const c=audioContext??(audioContext=new AudioContext()),o=c.createOscillator(),g=c.createGain();o.type=type;o.frequency.value=freq;g.gain.setValueAtTime(vol,c.currentTime);g.gain.exponentialRampToValueAtTime(.001,c.currentTime+dur);o.connect(g);g.connect(c.destination);o.start();o.stop(c.currentTime+dur);}catch{}}
 function ui(next:Mode){mode=next;for(const id of ['menu','pause','dead','settings','stats'])$('#'+id).classList.toggle('hidden',id!==next);$('#hud').classList.toggle('active',next==='playing'||next==='training');if(next!=='playing'&&next!=='training'&&document.pointerLockElement)document.exitPointerLock();$('#hint').classList.toggle('hidden',next!=='playing'&&next!=='training');}
 function setWeaponModel(){const v=weapon==='ARC'?{body:[1,1,1],barrel:1,top:[1,1,1]}:weapon==='BREACH'?{body:[1.28,1.12,1.2],barrel:1.45,top:[1.15,1.2,1.25]}:{body:[.92,.95,1.28],barrel:2.05,top:[.9,.9,1.65]};gunBody.scale.set(...v.body as [number,number,number]);gunBarrel.scale.z=v.barrel;gunTop.scale.set(...v.top as [number,number,number]);gunBarrel.position.z=weapon==='ARC' ? -0.42 : weapon==='BREACH' ? -0.5 : -0.66;viewModel.position.x=weapon==='BREACH' ? 0.38 : 0.34;viewModel.position.z=weapon==='RAIL'?-.72:-.62;}
 function hud(){setWeaponModel();$('#stage').textContent=String(stage).padStart(2,'0');$('#score').textContent=Math.floor(score).toString().padStart(6,'0');$('#health').innerHTML=Math.max(0,Math.ceil(hp))+' <small>/ 100 HP</small>';$('#weapon').textContent=weaponData[weapon].name;$('#ammo').textContent=reloadTime>0?'RELOADING '+reloadTime.toFixed(1)+'s · R':mag[weapon]+' / '+reserve[weapon]+' · R RELOAD';$('#ammo').classList.toggle('ammo-low',mag[weapon]<=Math.max(1,Math.ceil(weaponData[weapon].size*.25)));$('#ammo').classList.toggle('reloading',reloadTime>0);$('#combo').textContent='FLOW x'+combo.toFixed(1);}
@@ -105,7 +105,8 @@ function spawn(kind:Kind,p:THREE.Vector3,boss=false){
  enemies.push({root:g,core,hitProxy,kind,hp:h,max:h,speed:kind==='RUNNER'?3.8:kind==='INTERCEPTOR'?5.5:kind==='TANK'?1.5:kind==='DRONE'?2.2:0,cool:Math.random()+1.3,alive:true,boss});
  if(boss){$('#bossbar').classList.remove('hidden');$('#bossname').textContent=stage%25===0?'THE COLOSSUS':'THE HUNTER';}
 }
-function buildArena(){colliders.length=0;clear(world);clear(foes);enemies=[];
+const arenaLights:THREE.PointLight[]=[];
+function buildArena(){for(const light of arenaLights)scene.remove(light);arenaLights.length=0;colliders.length=0;clear(world);clear(foes);enemies=[];
  // Flat spawn lane, clear sightline, raised side routes and strong landmarks.
  block(0,-.5,0,56,1,56,floorMat);
  block(0,9,-28,56,18,1,wallMat);block(0,9,28,56,18,1,wallMat);
@@ -137,7 +138,7 @@ function buildArena(){colliders.length=0;clear(world);clear(foes);enemies=[];
  const reactor=new THREE.Group();reactor.position.set(0,0,-23);world.add(reactor);
  const coreMesh=new THREE.Mesh(new THREE.CylinderGeometry(.65,.9,4.8,10),darkMat);coreMesh.position.y=2.4;reactor.add(coreMesh);
  for(const y of [1.1,2.4,3.7]){const ring=new THREE.Mesh(new THREE.TorusGeometry(1.05,.09,8,24),orangeMat);ring.rotation.x=Math.PI/2;ring.position.y=y;reactor.add(ring);}
- const reactorLight=new THREE.PointLight(0xff642e,16,24);reactorLight.position.set(0,3,-23);scene.add(reactorLight);
+ const reactorLight=new THREE.PointLight(0xff642e,16,24);reactorLight.position.set(0,3,-23);scene.add(reactorLight);arenaLights.push(reactorLight);
  position.set(0,1.7,17);velocity.set(0,0,0);yaw=0;pitch=0;camera.position.copy(position);camera.rotation.set(pitch,yaw,0,'YXZ');hp=100;grounded=true;sliding=false;grapple=null;grappleCD=0;wallrun=0;coyote=.12;
  if(mode!=='training'){
    const count=stage===1?3:stage%5===0?4:stage%3===0?5:4;
