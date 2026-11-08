@@ -31,3 +31,6 @@ kbd{display:inline-block;min-width:22px;padding:3px 5px;margin-right:5px;text-al
 #crosshair.hit:before,#crosshair.hit:after{background:#ff7138;box-shadow:0 0 8px #ff7138}
 .objective{box-shadow:0 8px 32px rgba(0,0,0,.32)}
 .inrun-controls{border-left:2px solid rgba(255,113,56,.7);backdrop-filter:blur(10px)}
+
+/* Combat readability pass */
+#ammo{display:inline-block;min-width:190px;padding:6px 9px;margin-top:5px;border:1px solid rgba(180,200,215,.22);background:rgba(7,12,17,.72);letter-spacing:.08em;transition:color .15s,border-color .15s}#ammo.ammo-low{color:#ff755d;border-color:rgba(255,75,60,.65);animation:ammoPulse .9s ease-in-out infinite alternate}#ammo.reloading{color:#8feaff;border-color:rgba(90,190,255,.65)}@keyframes ammoPulse{from{opacity:1}to{opacity:.55}}#crosshair.hit-confirm:before,#crosshair.hit-confirm:after{background:#a8ffb0;box-shadow:0 0 10px #72ff8b}.weapon{min-width:220px}
