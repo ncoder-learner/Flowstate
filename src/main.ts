@@ -63,7 +63,7 @@ function note(t:string){$('#notice').textContent=t;noticeTime=1.8;}
 function sound(freq:number,dur=.08,type:OscillatorType='sawtooth',vol=.035){try{const c=new AudioContext(),o=c.createOscillator(),g=c.createGain();o.type=type;o.frequency.value=freq;g.gain.setValueAtTime(vol,c.currentTime);g.gain.exponentialRampToValueAtTime(.001,c.currentTime+dur);o.connect(g);g.connect(c.destination);o.start();o.stop(c.currentTime+dur);o.onended=()=>c.close();}catch{}}
 function ui(next:Mode){mode=next;for(const id of ['menu','pause','dead','settings','stats'])$('#'+id).classList.toggle('hidden',id!==next);$('#hud').classList.toggle('active',next==='playing'||next==='training');if(next!=='playing'&&next!=='training'&&document.pointerLockElement)document.exitPointerLock();$('#hint').classList.toggle('hidden',next!=='playing'&&next!=='training');}
 function setWeaponModel(){const v=weapon==='ARC'?{body:[1,1,1],barrel:1,top:[1,1,1]}:weapon==='BREACH'?{body:[1.28,1.12,1.2],barrel:1.45,top:[1.15,1.2,1.25]}:{body:[.92,.95,1.28],barrel:2.05,top:[.9,.9,1.65]};gunBody.scale.set(...v.body as [number,number,number]);gunBarrel.scale.z=v.barrel;gunTop.scale.set(...v.top as [number,number,number]);gunBarrel.position.z=weapon==='ARC' ? -0.42 : weapon==='BREACH' ? -0.5 : -0.66;viewModel.position.x=weapon==='BREACH' ? 0.38 : 0.34;viewModel.position.z=weapon==='RAIL'?-.72:-.62;}
-function hud(){setWeaponModel(); $('#stage').textContent=String(stage).padStart(2,'0');$('#score').textContent=Math.floor(score).toString().padStart(6,'0');$('#health').innerHTML=Math.max(0,Math.ceil(hp))+' <small>/ 100 HP</small>';$('#weapon').textContent=weaponData[weapon].name;$('#ammo').textContent=mag[weapon]+' / '+reserve[weapon]+' · R RELOAD';$('#ammo').classList.toggle('ammo-low',mag[weapon]<=Math.max(1,Math.ceil(weaponData[weapon].size*.25)));$('#combo').textContent='FLOW x'+combo.toFixed(1); }
+function hud(){setWeaponModel();$('#stage').textContent=String(stage).padStart(2,'0');$('#score').textContent=Math.floor(score).toString().padStart(6,'0');$('#health').innerHTML=Math.max(0,Math.ceil(hp))+' <small>/ 100 HP</small>';$('#weapon').textContent=weaponData[weapon].name;$('#ammo').textContent=reloadTime>0?'RELOADING '+reloadTime.toFixed(1)+'s · R':mag[weapon]+' / '+reserve[weapon]+' · R RELOAD';$('#ammo').classList.toggle('ammo-low',mag[weapon]<=Math.max(1,Math.ceil(weaponData[weapon].size*.25)));$('#ammo').classList.toggle('reloading',reloadTime>0);$('#combo').textContent='FLOW x'+combo.toFixed(1);}
 function spawn(kind:Kind,p:THREE.Vector3,boss=false){
  const g=new THREE.Group(),colors:Record<Kind,number>={RUNNER:0xe85e45,SNIPER:0x64a9db,TANK:0x9a6e53,DRONE:0x9a7ee5,INTERCEPTOR:0xffa04a};
  const scale=boss?1.55:kind==='TANK'?1.3:1;
@@ -275,8 +275,25 @@ function movePlayer(dt:number){
  $('#speed').textContent=Math.round(speed).toString();$('#combo').textContent='FLOW x'+combo.toFixed(1);
  $('#ability').textContent=grappleCD>0?'GRAPPLE RECHARGING':grapple?'TETHER ACTIVE · BUILD MOMENTUM':'GRAPPLE READY · Q OVERDRIVE';
 }
-function update(dt:number){if(mode!=='playing'&&mode!=='training')return;for(let i=visualEffects.length-1;i>=0;i--){const fx=visualEffects[i];fx.life-=dt;if(fx.life<=0){scene.remove(fx.object);if(fx.object instanceof THREE.Line){fx.object.geometry.dispose();(fx.object.material as THREE.Material).dispose();}visualEffects.splice(i,1);}}if(noticeTime>0){noticeTime-=dt;if(noticeTime<=0)$('#notice').textContent='';}movePlayer(dt);updateEnemies(dt);const boss=enemies.find(e=>e.boss&&e.alive);if(boss){$('#bossbar').classList.remove('hidden');$('#bossfill').style.width=(100*boss.hp/boss.max)+'%';}else $('#bossbar').classList.add('hidden');if(mode==='playing'&&enemies.every(e=>!e.alive))nextStage();updateObjective();hud();}
-let last=0,acc=0;function frame(now:number){requestAnimationFrame(frame);const dt=Math.min(.05,(now-last)/1000||0);last=now;if(mode==='playing'||mode==='training'){acc+=dt;let n=0;while(acc>=1/120&&n<8){update(1/120);acc-=1/120;n++;}}renderer.render(scene,camera);}requestAnimationFrame(frame);
+function update(dt:number){
+ if(mode!=='playing'&&mode!=='training')return;
+ for(let i=visualEffects.length-1;i>=0;i--){const fx=visualEffects[i];fx.life-=dt;if(fx.life<=0){scene.remove(fx.object);if(fx.object instanceof THREE.Line){fx.object.geometry.dispose();(fx.object.material as THREE.Material).dispose();}visualEffects.splice(i,1);}}
+ if(playerShotLife>0){playerShotLife-=dt;if(playerShotLife<=0)playerShot.visible=false;}
+ if(muzzleLife>0){muzzleLife-=dt;muzzleFlash.material.opacity=Math.max(0,muzzleLife/.055);if(muzzleLife<=0)muzzleFlash.visible=false;}
+ if(noticeTime>0){noticeTime-=dt;if(noticeTime<=0)$('#notice').textContent='';}
+ movePlayer(dt);updateEnemies(dt);
+ if(mode==='playing'&&enemies.every(e=>!e.alive))nextStage();
+}
+let last=0,acc=0,uiAccumulator=0;
+function frame(now:number){
+ requestAnimationFrame(frame);const dt=Math.min(.05,(now-last)/1000||0);last=now;
+ if(mode==='playing'||mode==='training'){
+   acc+=dt;let n=0;while(acc>=1/120&&n<8){update(1/120);acc-=1/120;n++;}
+   uiAccumulator+=dt;if(uiAccumulator>=.1){uiAccumulator=0;const boss=enemies.find(e=>e.boss&&e.alive);if(boss){$('#bossbar').classList.remove('hidden');$('#bossfill').style.width=(100*boss.hp/boss.max)+'%';}else $('#bossbar').classList.add('hidden');updateObjective();hud();}
+ }
+ renderer.render(scene,camera);
+}
+requestAnimationFrame(frame);
 function aim(dx:number,dy:number){const sens=Number(($('#sens') as HTMLInputElement).value)||1;yaw-=dx*.0022*sens;pitch=clamp(pitch-dy*.0022*sens,-1.48,1.48);}
 canvas.addEventListener('click',()=>{if(mode==='playing'||mode==='training'){if(document.pointerLockElement!==canvas)canvas.requestPointerLock();}});
 document.addEventListener('pointerlockchange',()=>$('#hint').classList.toggle('hidden',document.pointerLockElement===canvas||!(mode==='playing'||mode==='training')));
