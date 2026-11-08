@@ -4,7 +4,7 @@ import './style.css';
 type Mode='menu'|'playing'|'paused'|'dead'|'training'|'settings'|'stats';
 type Kind='RUNNER'|'SNIPER'|'TANK'|'DRONE'|'INTERCEPTOR';
 type Weapon='ARC'|'BREACH'|'RAIL';
-type Enemy={root:THREE.Group;core:THREE.Mesh;hitProxy:THREE.Mesh;kind:Kind;hp:number;max:number;speed:number;cool:number;alive:boolean;boss:boolean};
+type Enemy={root:THREE.Group;core:THREE.Mesh;hitProxy:THREE.Mesh;kind:Kind;hp:number;max:number;speed:number;cool:number;windup:number;alive:boolean;boss:boolean};
 type EnemyProjectile={mesh:THREE.Mesh;velocity:THREE.Vector3;damage:number;life:number};
 type Save={runs:number;highestStage:number;highestScore:number;kills:number;distance:number;longestCombo:number;highestSpeed:number;bossesDefeated:number};
 const $=(s:string)=>document.querySelector<HTMLElement>(s)!;
@@ -143,10 +143,10 @@ function spawn(kind:Kind,p:THREE.Vector3,boss=false){
    if(kind==='INTERCEPTOR'){add(new THREE.BoxGeometry(1.2,.12,.3),dark,0,1.25,.08);add(new THREE.BoxGeometry(.12,.4,.12),glowMat,0,.95,-.25);}
  }
  const core=add(new THREE.SphereGeometry(boss?.58:.42,14,10),new THREE.MeshBasicMaterial({color:0xffbd72}),0,kind==='DRONE'?0:1.05*scale,-.28);
- const hitProxy=new THREE.Mesh(new THREE.SphereGeometry(kind==='TANK'?1.18:kind==='DRONE'?.92:.88,10,8),hitProxyMaterial);hitProxy.position.set(0,kind==='DRONE'?0:.94*scale,0);hitProxy.userData.hitTarget=true;g.add(hitProxy);
+ const hitProxy=new THREE.Mesh(new THREE.SphereGeometry(kind==='TANK'?1.28:kind==='DRONE'?1.3:kind==='INTERCEPTOR'?1.08:.98,12,10),hitProxyMaterial);hitProxy.position.set(0,kind==='DRONE'?0:.94*scale,0);hitProxy.userData.hitTarget=true;g.add(hitProxy);
  g.position.copy(p);foes.add(g);
- const difficulty=1+Math.min(.95,Math.max(0,stage-1)*.065),h=(boss?850:kind==='TANK'?210:kind==='DRONE'?55:kind==='SNIPER'?65:kind==='INTERCEPTOR'?140:48)*difficulty;
- enemies.push({root:g,core,hitProxy,kind,hp:h,max:h,speed:(kind==='RUNNER'?3.8:kind==='INTERCEPTOR'?5.5:kind==='TANK'?1.5:kind==='DRONE'?2.2:0)*(1+Math.min(.55,Math.max(0,stage-1)*.035)),cool:Math.random()+1.3,alive:true,boss});
+ const difficulty=1+Math.min(.95,Math.max(0,stage-1)*.065),h=(boss?850:kind==='TANK'?210:kind==='DRONE'?42:kind==='SNIPER'?65:kind==='INTERCEPTOR'?140:48)*difficulty;
+ enemies.push({root:g,core,hitProxy,kind,hp:h,max:h,speed:(kind==='RUNNER'?3.8:kind==='INTERCEPTOR'?5.5:kind==='TANK'?1.5:kind==='DRONE'?2.2:0)*(1+Math.min(.55,Math.max(0,stage-1)*.035)),cool:Math.random()+1.3,windup:0,alive:true,boss});
  if(boss){$('#bossbar').classList.remove('hidden');$('#bossname').textContent=stage%25===0?'THE COLOSSUS':'THE HUNTER';}
 }
 const arenaLights:THREE.PointLight[]=[];
@@ -238,8 +238,10 @@ function updateEnemies(dt:number){
    const p=e.root.position,d=position.clone().sub(p),dist=d.length();e.cool-=dt;
    if(e.kind==='DRONE'){
      p.y=3+Math.sin(performance.now()*.001+e.root.id)*.8;
-     if(dist>8)p.addScaledVector(d.normalize(),e.speed*dt*.45);
-     if(e.cool<0&&dist<28){const from=p.clone();from.y=p.y;launchEnemyProjectile(from,position.clone(),15,4);note('DRONE // INCOMING ORB');e.cool=3.1;}
+     const toward=d.clone().normalize(),strafe=new THREE.Vector3(-toward.z,0,toward.x);
+     if(dist>8){p.addScaledVector(toward,e.speed*dt*.3);p.addScaledVector(strafe,Math.sin(performance.now()*.0014+e.root.id)*e.speed*dt*.85);}
+     if(e.cool<0&&e.windup<=0&&dist<28){e.windup=.62;e.cool=3.8;const from=p.clone();from.y=p.y;addTracer(from,position.clone(),0xff315b,.62);note('DRONE CHARGING // BREAK LINE OF SIGHT');}
+     if(e.windup>0){e.windup-=dt;if(e.windup<=0){const from=p.clone();from.y=p.y;launchEnemyProjectile(from,position.clone(),15,4);note('DRONE // ORB RELEASED');}}
    }else if(['RUNNER','INTERCEPTOR','TANK'].includes(e.kind)){
      if(dist>1.8)p.addScaledVector(d.normalize(),e.speed*dt*(e.boss?1.35:1));
      else if(e.cool<0){addTracer(p.clone().add(new THREE.Vector3(0,1,0)),position.clone(),0xff243f,.28);note('CONTACT ATTACK // CREATE DISTANCE');hurt(e.kind==='TANK'?9:6);e.cool=2.0;}
