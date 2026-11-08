@@ -27,12 +27,12 @@ renderer.setPixelRatio(Math.min(devicePixelRatio,1.5));renderer.setSize(innerWid
 const scene=new THREE.Scene();scene.background=new THREE.Color(0x080b10);scene.fog=new THREE.FogExp2(0x080b10,.012);
 const camera=new THREE.PerspectiveCamera(94,innerWidth/innerHeight,.08,260);camera.rotation.order='YXZ';scene.add(camera);
 const viewModel=new THREE.Group();camera.add(viewModel);viewModel.position.set(.34,-.3,-.62);
-const gunDark=material(0x18232d,.38,.72),gunEdge=material(0x60717d,.32,.8);
+const gunDark=new THREE.MeshStandardMaterial({color:0x18232d,roughness:.38,metalness:.72}),gunEdge=new THREE.MeshStandardMaterial({color:0x60717d,roughness:.32,metalness:.8}),gunAccent=new THREE.MeshStandardMaterial({color:0xff6b35,emissive:0x8b260b,emissiveIntensity:1.2}),gunBlue=new THREE.MeshStandardMaterial({color:0x4e9acb,emissive:0x153b5b,emissiveIntensity:1.1});
 const gunBody=new THREE.Mesh(new THREE.BoxGeometry(.22,.17,.52),gunDark);viewModel.add(gunBody);
 const gunBarrel=new THREE.Mesh(new THREE.CylinderGeometry(.035,.045,.42,10),gunEdge);gunBarrel.rotation.x=Math.PI/2;gunBarrel.position.set(0,.035,-.42);viewModel.add(gunBarrel);
-const gunTop=new THREE.Mesh(new THREE.BoxGeometry(.12,.045,.3),orangeMat);gunTop.position.set(0,.12,-.1);viewModel.add(gunTop);
+const gunTop=new THREE.Mesh(new THREE.BoxGeometry(.12,.045,.3),gunAccent);gunTop.position.set(0,.12,-.1);viewModel.add(gunTop);
 const gunGrip=new THREE.Mesh(new THREE.BoxGeometry(.12,.24,.14),gunDark);gunGrip.position.set(0,-.16,.12);gunGrip.rotation.x=-.18;viewModel.add(gunGrip);
-const gunSide=new THREE.Mesh(new THREE.BoxGeometry(.025,.09,.24),blueMat);gunSide.position.set(.125,.01,-.08);viewModel.add(gunSide);
+const gunSide=new THREE.Mesh(new THREE.BoxGeometry(.025,.09,.24),gunBlue);gunSide.position.set(.125,.01,-.08);viewModel.add(gunSide);
 
 scene.add(new THREE.HemisphereLight(0x9bb9d6,0x171c24,1.5));const sun=new THREE.DirectionalLight(0xd7e5ff,1.5);sun.position.set(8,18,7);scene.add(sun);
 const glow=new THREE.PointLight(0xff642e,22,32);glow.position.set(0,5,0);scene.add(glow);
