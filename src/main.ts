@@ -71,8 +71,12 @@ function launchEnemyProjectile(from:THREE.Vector3,target:THREE.Vector3,speed:num
 }
 function clearEnemyProjectiles(){for(const p of enemyProjectiles){scene.remove(p.mesh);p.mesh.geometry.dispose();const materials=p.mesh.material; if(Array.isArray(materials))materials.forEach(m=>m.dispose());else materials.dispose();}enemyProjectiles.length=0;}
 function updateEnemyProjectiles(dt:number){
- for(let i=enemyProjectiles.length-1;i>=0;i--){const p=enemyProjectiles[i];p.life-=dt;p.mesh.position.addScaledVector(p.velocity,dt);
-   if(p.mesh.position.distanceTo(position)<.78){hurt(p.damage);p.life=0;}
+ for(let i=enemyProjectiles.length-1;i>=0;i--){const p=enemyProjectiles[i],step=p.velocity.length()*dt;p.life-=dt;
+   ray.set(p.mesh.position,p.velocity.clone().normalize());ray.far=step+.16;
+   const blocked=ray.intersectObjects(world.children,true).length>0;
+   p.mesh.position.addScaledVector(p.velocity,dt);
+   if(!blocked&&p.mesh.position.distanceTo(position)<.78){hurt(p.damage);p.life=0;}
+   if(blocked)p.life=0;
    if(p.life<=0){scene.remove(p.mesh);p.mesh.geometry.dispose();const materials=p.mesh.material;if(Array.isArray(materials))materials.forEach(m=>m.dispose());else materials.dispose();enemyProjectiles.splice(i,1);}
  }
 }
