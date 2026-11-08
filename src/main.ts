@@ -49,7 +49,7 @@ let weapon:Weapon='ARC',mag:Record<Weapon,number>={ARC:12,BREACH:6,RAIL:4},reser
 const weaponData:Record<Weapon,{name:string;damage:number;rate:number;reload:number;spread:number;size:number}>={ARC:{name:'ARC PISTOL',damage:28,rate:.19,reload:1.1,spread:.006,size:12},BREACH:{name:'BREACH SHOTGUN',damage:17,rate:.72,reload:1.5,spread:.075,size:6},RAIL:{name:'RAIL PRECISION',damage:105,rate:1.05,reload:1.8,spread:0,size:4}};
 let enemies:Enemy[]=[];
 const keys=new Set<string>(),velocity=new THREE.Vector3(),position=new THREE.Vector3(0,1.7,8),forward=new THREE.Vector3(),right=new THREE.Vector3(),move=new THREE.Vector3();
-let yaw=0,pitch=0,grounded=false,sliding=false,wallrun=0,wallSide=0,settingsReturn:Mode='menu',coyote=0,jumpBuffer=0,grapple:THREE.Vector3|null=null,grappleCD=0,fireCD=0,reloadTime=0,overdrive=0,ability=100,noticeTime=0,walkPhase=0;
+let yaw=0,pitch=0,grounded=false,sliding=false,slideTime=0,slideCooldown=0,landingKick=0,wasGrounded=true,wallrun=0,wallSide=0,settingsReturn:Mode='menu',coyote=0,jumpBuffer=0,grapple:THREE.Vector3|null=null,grappleCD=0,fireCD=0,reloadTime=0,overdrive=0,ability=100,noticeTime=0,walkPhase=0;
 const ray=new THREE.Raycaster(),clock=new THREE.Clock();
 const visualEffects:{object:THREE.Object3D;life:number}[]=[];
 function addTracer(from:THREE.Vector3,to:THREE.Vector3,color:number=0xffb15e,life=.13){const geo=new THREE.BufferGeometry().setFromPoints([from,to]);const line=new THREE.Line(geo,new THREE.LineBasicMaterial({color,transparent:true,opacity:.95,depthTest:false}));line.renderOrder=20;scene.add(line);visualEffects.push({object:line,life});}
@@ -201,19 +201,75 @@ function updateEnemies(dt:number){
  }
 }
 function collides(p:THREE.Vector3){const r=.34,b=new THREE.Box3(new THREE.Vector3(p.x-r,p.y-1.66,p.z-r),new THREE.Vector3(p.x+r,p.y,p.z+r));return colliders.some(c=>c.intersectsBox(b));}
-function movePlayer(dt:number){camera.getWorldDirection(forward);forward.y=0;forward.normalize();right.crossVectors(forward,new THREE.Vector3(0,1,0)).normalize();move.set(0,0,0);if(keys.has('KeyW'))move.add(forward);if(keys.has('KeyS'))move.sub(forward);if(keys.has('KeyD'))move.add(right);if(keys.has('KeyA'))move.sub(right);if(move.lengthSq())move.normalize();
- const sprint=keys.has('ShiftLeft')||keys.has('ShiftRight');if(sprint&&grounded&&velocity.length()>4)sliding=true;if(!sprint)sliding=false;
- const accel=grounded?(sliding?7:sprint?42:34):16;velocity.x+=move.x*accel*dt;velocity.z+=move.z*accel*dt;if(!move.lengthSq()&&grounded&&!sliding){const drag=Math.exp(-5.5*dt);velocity.x*=drag;velocity.z*=drag;}
- const max=overdrive>0?27:sliding?22:sprint?20:13,hs=Math.hypot(velocity.x,velocity.z);if(hs>max){velocity.x*=max/hs;velocity.z*=max/hs;}
- if(grapple){const d=grapple.clone().sub(position);if(d.length()<1.7){grapple=null;grappleCD=1.2;}else velocity.addScaledVector(d.normalize(),28*dt);}
- if(!grounded)velocity.y-=22*dt;if(jumpBuffer>0&&(grounded||coyote>0||wallrun>0)){velocity.y=sliding?10.5:9.5;if(wallrun>0)velocity.x+=wallSide*-6;grounded=false;coyote=0;wallrun=0;jumpBuffer=0;sliding=false;sound(300,.07,'triangle',.025);}
- // Wall-run assist is disabled until wall contact and camera feedback are reliable.
- const next=position.clone().addScaledVector(velocity,dt),horizontal=next.clone();horizontal.y=position.y;if(!collides(horizontal)){position.x=next.x;position.z=next.z;}else{velocity.x*=.25;velocity.z*=.25;}
- const y=position.y+velocity.y*dt;let support:THREE.Box3|undefined;if(velocity.y<=0){const feet=position.y-1.7,nextFeet=y-1.7;support=colliders.find(c=>position.x>c.min.x-.34&&position.x<c.max.x+.34&&position.z>c.min.z-.34&&position.z<c.max.z+.34&&feet>=c.max.y-.06&&nextFeet<=c.max.y&&c.max.y>=0);}if(support){position.y=support.max.y+1.7;velocity.y=0;grounded=true;coyote=.12;}else if(y<=1.7){position.y=1.7;velocity.y=0;grounded=true;coyote=.12;}else{position.y=y;grounded=false;coyote=Math.max(0,coyote-dt);}
- if(position.y< -8)hurt(100);position.x=clamp(position.x,-19.7,19.7);position.z=clamp(position.z,-19.7,19.7);
- if(hurtIFrames>0)hurtIFrames=Math.max(0,hurtIFrames-dt);if(grappleCD>0)grappleCD-=dt;if(jumpBuffer>0)jumpBuffer-=dt;if(fireCD>0)fireCD-=dt;if(reloadTime>0){reloadTime-=dt;if(reloadTime<=0){const n=Math.min(weaponData[weapon].size-mag[weapon],reserve[weapon]);mag[weapon]+=n;reserve[weapon]-=n;hud();}}if(overdrive>0)overdrive-=dt;if(ability<100)ability=Math.min(100,ability+dt*8);
- const speed=velocity.length();viewModel.position.y=THREE.MathUtils.damp(viewModel.position.y,-.3+(sliding?-.12:0)+Math.sin(walkPhase*2)*Math.min(.012,speed*.0005),8,dt);distance+=speed*dt;bestSpeed=Math.max(bestSpeed,speed);if(speed>12&&grounded){comboTime=Math.max(comboTime,.3);score+=speed*dt*.3;}if(comboTime>0)comboTime-=dt;else combo=Math.max(1,combo-dt*.22);
- walkPhase+=dt*speed*.45;camera.position.set(position.x,position.y+(grounded?Math.sin(walkPhase)*Math.min(.035,speed*.0015):0),position.z);camera.rotation.set(pitch,yaw,0,'YXZ');camera.fov=THREE.MathUtils.damp(camera.fov,clamp(94+speed*.55,82,112),4,dt);camera.updateProjectionMatrix();$('#speed').textContent=Math.round(speed).toString();$('#combo').textContent='FLOW x'+combo.toFixed(1);$('#ability').textContent=grappleCD>0?'GRAPPLE RECHARGING':'GRAPPLE READY · Q OVERDRIVE';}
+function movePlayer(dt:number){
+ camera.getWorldDirection(forward);forward.y=0;forward.normalize();right.crossVectors(forward,new THREE.Vector3(0,1,0)).normalize();
+ move.set(0,0,0);if(keys.has('KeyW'))move.add(forward);if(keys.has('KeyS'))move.sub(forward);if(keys.has('KeyD'))move.add(right);if(keys.has('KeyA'))move.sub(right);if(move.lengthSq())move.normalize();
+ const sprint=keys.has('ShiftLeft')||keys.has('ShiftRight');
+ const hs=Math.hypot(velocity.x,velocity.z);
+ // A slide is a deliberate momentum move, not simply a slower sprint.
+ if(sprint&&grounded&&move.lengthSq()>.1&&hs>6.5&&!sliding&&slideCooldown<=0){sliding=true;slideTime=.82;velocity.x*=1.13;velocity.z*=1.13;sound(105,.11,'triangle',.035);note('SLIDE // KEEP YOUR MOMENTUM');}
+ if(sliding){slideTime-=dt;if(slideTime<=0||!grounded){sliding=false;slideCooldown=.22;}}
+ if(slideCooldown>0)slideCooldown=Math.max(0,slideCooldown-dt);
+ const accel=grounded?(sliding?5.5:sprint?38:29):9.5;
+ if(move.lengthSq()){
+   const steer=sliding?.32:1;
+   velocity.x+=move.x*accel*dt*steer;velocity.z+=move.z*accel*dt*steer;
+ }else if(grounded){
+   const drag=Math.exp(-(sliding?1.05: sprint?2.8:7.2)*dt);
+   velocity.x*=drag;velocity.z*=drag;
+ }
+ const max=overdrive>0?28:sliding?23:sprint?21:12.5;
+ const speedNow=Math.hypot(velocity.x,velocity.z);
+ if(speedNow>max){const scale=max/speedNow;velocity.x*=scale;velocity.z*=scale;}
+ if(grapple){
+   const d=grapple.clone().sub(position),len=d.length();
+   if(len<2.1){grapple=null;grappleCD=1.15;velocity.y=Math.max(velocity.y,3.2);note('TETHER RELEASE // LAUNCH');}
+   else velocity.addScaledVector(d.normalize(),34*dt);
+ }
+ if(!grounded)velocity.y-=22*dt;
+ if(jumpBuffer>0&&(grounded||coyote>0||wallrun>0)){
+   velocity.y=sliding?10.8:9.8;
+   if(sliding){velocity.x*=1.08;velocity.z*=1.08;sliding=false;slideCooldown=.3;}
+   if(wallrun>0)velocity.x+=wallSide*-6;
+   grounded=false;coyote=0;wallrun=0;jumpBuffer=0;
+   sound(360,.075,'triangle',.035);
+ }
+ const next=position.clone().addScaledVector(velocity,dt),horizontal=next.clone();horizontal.y=position.y;
+ if(!collides(horizontal)){position.x=next.x;position.z=next.z;}
+ else{velocity.x*=sliding?.55:.22;velocity.z*=sliding?.55:.22;sliding=false;}
+ const y=position.y+velocity.y*dt;let support:THREE.Box3|undefined;
+ if(velocity.y<=0){
+   const feet=position.y-1.7,nextFeet=y-1.7;
+   support=colliders.find(c=>position.x>c.min.x-.34&&position.x<c.max.x+.34&&position.z>c.min.z-.34&&position.z<c.max.z+.34&&feet>=c.max.y-.06&&nextFeet<=c.max.y&&c.max.y>=0);
+ }
+ let landed=false;
+ if(support){position.y=support.max.y+1.7;landed=!grounded;velocity.y=0;grounded=true;coyote=.13;}
+ else if(y<=1.7){position.y=1.7;landed=!grounded;velocity.y=0;grounded=true;coyote=.13;}
+ else{position.y=y;grounded=false;coyote=Math.max(0,coyote-dt);}
+ if(landed&&wasGrounded===false){landingKick=Math.min(.16,Math.abs(velocity.y)*.009);sound(95,.055,'triangle',.018);}
+ wasGrounded=grounded;
+ if(position.y< -8)hurt(100);
+ // Keep the player inside the actual arena walls, not an arbitrary 40m sub-area.
+ position.x=clamp(position.x,-25.4,25.4);position.z=clamp(position.z,-25.4,25.4);
+ if(hurtIFrames>0)hurtIFrames=Math.max(0,hurtIFrames-dt);if(grappleCD>0)grappleCD-=dt;if(jumpBuffer>0)jumpBuffer-=dt;if(fireCD>0)fireCD-=dt;
+ if(reloadTime>0){reloadTime-=dt;if(reloadTime<=0){const n=Math.min(weaponData[weapon].size-mag[weapon],reserve[weapon]);mag[weapon]+=n;reserve[weapon]-=n;hud();}}
+ if(overdrive>0)overdrive-=dt;if(ability<100)ability=Math.min(100,ability+dt*8);
+ const speed=Math.hypot(velocity.x,velocity.z);walkPhase+=dt*speed*.5;distance+=speed*dt;bestSpeed=Math.max(bestSpeed,speed);
+ if(speed>12&&grounded){comboTime=Math.max(comboTime,.3);score+=speed*dt*.3;}if(comboTime>0)comboTime-=dt;else combo=Math.max(1,combo-dt*.22);
+ landingKick=Math.max(0,landingKick-dt*.65);
+ const lateral=velocity.dot(right);const targetRoll=clamp(-lateral*.009,-.13,.13);
+ const roll=THREE.MathUtils.damp(camera.rotation.z,targetRoll,7,dt);
+ const bob=grounded?Math.sin(walkPhase*2)*Math.min(.055,speed*.002):0;
+ const crouch=sliding?-.28:0;
+ camera.position.set(position.x,position.y+crouch+bob+landingKick,position.z);
+ camera.rotation.set(pitch,yaw,roll,'YXZ');
+ const targetFov=clamp(94+speed*.58+(sprint&&grounded?3:0)+(grapple?5:0),82,116);
+ camera.fov=THREE.MathUtils.damp(camera.fov,targetFov,5,dt);camera.updateProjectionMatrix();
+ viewModel.position.y=THREE.MathUtils.damp(viewModel.position.y,-.3+(sliding?-.1:0)+Math.sin(walkPhase*2)*Math.min(.025,speed*.0009)+landingKick*.5,10,dt);
+ viewModel.position.x=THREE.MathUtils.damp(viewModel.position.x,.34+Math.sin(walkPhase)*Math.min(.025,speed*.0008),8,dt);
+ $('#speed').textContent=Math.round(speed).toString();$('#combo').textContent='FLOW x'+combo.toFixed(1);
+ $('#ability').textContent=grappleCD>0?'GRAPPLE RECHARGING':grapple?'TETHER ACTIVE · BUILD MOMENTUM':'GRAPPLE READY · Q OVERDRIVE';
+}
 function update(dt:number){if(mode!=='playing'&&mode!=='training')return;for(let i=visualEffects.length-1;i>=0;i--){const fx=visualEffects[i];fx.life-=dt;if(fx.life<=0){scene.remove(fx.object);if(fx.object instanceof THREE.Line){fx.object.geometry.dispose();(fx.object.material as THREE.Material).dispose();}visualEffects.splice(i,1);}}if(noticeTime>0){noticeTime-=dt;if(noticeTime<=0)$('#notice').textContent='';}movePlayer(dt);updateEnemies(dt);const boss=enemies.find(e=>e.boss&&e.alive);if(boss){$('#bossbar').classList.remove('hidden');$('#bossfill').style.width=(100*boss.hp/boss.max)+'%';}else $('#bossbar').classList.add('hidden');if(mode==='playing'&&enemies.every(e=>!e.alive))nextStage();updateObjective();hud();}
 let last=0,acc=0;function frame(now:number){requestAnimationFrame(frame);const dt=Math.min(.05,(now-last)/1000||0);last=now;if(mode==='playing'||mode==='training'){acc+=dt;let n=0;while(acc>=1/120&&n<8){update(1/120);acc-=1/120;n++;}}renderer.render(scene,camera);}requestAnimationFrame(frame);
 function aim(dx:number,dy:number){const sens=Number(($('#sens') as HTMLInputElement).value)||1;yaw-=dx*.0022*sens;pitch=clamp(pitch-dy*.0022*sens,-1.48,1.48);}
