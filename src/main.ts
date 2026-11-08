@@ -6,6 +6,7 @@ type Kind='RUNNER'|'SNIPER'|'TANK'|'DRONE'|'INTERCEPTOR';
 type Weapon='ARC'|'BREACH'|'RAIL';
 type Enemy={root:THREE.Group;core:THREE.Mesh;hitProxy:THREE.Mesh;kind:Kind;hp:number;max:number;speed:number;cool:number;windup:number;alive:boolean;boss:boolean};
 type EnemyProjectile={mesh:THREE.Mesh;velocity:THREE.Vector3;damage:number;life:number};
+type Pickup={root:THREE.Group;life:number;phase:number};
 type Save={runs:number;highestStage:number;highestScore:number;kills:number;distance:number;longestCombo:number;highestSpeed:number;bossesDefeated:number};
 const $=(s:string)=>document.querySelector<HTMLElement>(s)!;
 const clamp=(v:number,a:number,b:number)=>Math.max(a,Math.min(b,v));
@@ -50,6 +51,7 @@ let weapon:Weapon='ARC',mag:Record<Weapon,number>={ARC:12,BREACH:6,RAIL:4},reser
 const weaponData:Record<Weapon,{name:string;damage:number;rate:number;reload:number;spread:number;size:number}>={ARC:{name:'ARC PISTOL',damage:28,rate:.19,reload:1.1,spread:.006,size:12},BREACH:{name:'BREACH SHOTGUN',damage:17,rate:.72,reload:1.5,spread:.075,size:6},RAIL:{name:'RAIL PRECISION',damage:105,rate:1.05,reload:1.8,spread:0,size:4}};
 let enemies:Enemy[]=[];
 const enemyProjectiles:EnemyProjectile[]=[];
+const pickups:Pickup[]=[];
 let hazardTimer=0,hazardHitCooldown=0,hazardCycle=-1;
 const hazardBeam=new THREE.Mesh(new THREE.BoxGeometry(52,.22,.34),new THREE.MeshBasicMaterial({color:0xff9a42,transparent:true,opacity:.9,depthWrite:false}));hazardBeam.position.y=.58;hazardBeam.visible=false;hazardBeam.renderOrder=25;scene.add(hazardBeam);
 const keys=new Set<string>(),velocity=new THREE.Vector3(),position=new THREE.Vector3(0,1.7,8),forward=new THREE.Vector3(),right=new THREE.Vector3(),move=new THREE.Vector3();
@@ -81,6 +83,20 @@ function launchEnemyProjectile(from:THREE.Vector3,target:THREE.Vector3,speed:num
  const mesh=new THREE.Mesh(new THREE.SphereGeometry(.28,10,8),new THREE.MeshBasicMaterial({color:0xff315b}));
  mesh.position.copy(from);scene.add(mesh);
  enemyProjectiles.push({mesh,velocity:direction.multiplyScalar(speed),damage,life:3.2});
+}
+function spawnPickup(at:THREE.Vector3){
+ const root=new THREE.Group();root.position.copy(at);root.position.y=Math.max(1,root.position.y+1);
+ const core=new THREE.Mesh(new THREE.OctahedronGeometry(.34,1),new THREE.MeshBasicMaterial({color:0x7bffd1}));
+ const ring=new THREE.Mesh(new THREE.TorusGeometry(.48,.045,6,18),new THREE.MeshBasicMaterial({color:0x42cfff}));
+ ring.rotation.x=Math.PI/2;root.add(core,ring);scene.add(root);pickups.push({root,life:12,phase:Math.random()*Math.PI*2});
+}
+function clearPickups(){for(const p of pickups){scene.remove(p.root);p.root.traverse(o=>{if(o instanceof THREE.Mesh){o.geometry.dispose();const ms=Array.isArray(o.material)?o.material:[o.material];ms.forEach(m=>m.dispose());}});}pickups.length=0;}
+function updatePickups(dt:number){
+ for(let i=pickups.length-1;i>=0;i--){const p=pickups[i];p.life-=dt;p.phase+=dt*3.5;p.root.rotation.y+=dt*1.8;p.root.position.y+=Math.sin(p.phase)*dt*.22;
+   const dist=p.root.position.distanceTo(position);
+   if(dist<1.65){const oldHp=hp;hp=Math.min(100,hp+12);const oldAbility=ability;ability=Math.min(100,ability+22);score+=150;note('FLOW CELL // +'+(hp-oldHp)+' HP · +'+Math.round(ability-oldAbility)+'% OVERDRIVE');sound(760,.12,'sine',.045);hud();p.life=0;}
+   if(p.life<=0){scene.remove(p.root);p.root.traverse(o=>{if(o instanceof THREE.Mesh){o.geometry.dispose();const ms=Array.isArray(o.material)?o.material:[o.material];ms.forEach(m=>m.dispose());}});pickups.splice(i,1);}
+ }
 }
 function clearEnemyProjectiles(){for(const p of enemyProjectiles){scene.remove(p.mesh);p.mesh.geometry.dispose();const materials=p.mesh.material; if(Array.isArray(materials))materials.forEach(m=>m.dispose());else materials.dispose();}enemyProjectiles.length=0;}
 function updateHazard(dt:number){
@@ -150,7 +166,7 @@ function spawn(kind:Kind,p:THREE.Vector3,boss=false){
  if(boss){$('#bossbar').classList.remove('hidden');$('#bossname').textContent=stage%25===0?'THE COLOSSUS':'THE HUNTER';}
 }
 const arenaLights:THREE.PointLight[]=[];
-function buildArena(){hazardTimer=0;hazardHitCooldown=0;hazardCycle=-1;hazardBeam.visible=false;clearEnemyProjectiles();for(const light of arenaLights)scene.remove(light);arenaLights.length=0;colliders.length=0;clear(world);clear(foes);enemies=[];
+function buildArena(){clearPickups();hazardTimer=0;hazardHitCooldown=0;hazardCycle=-1;hazardBeam.visible=false;clearEnemyProjectiles();for(const light of arenaLights)scene.remove(light);arenaLights.length=0;colliders.length=0;clear(world);clear(foes);enemies=[];
  // Flat spawn lane, clear sightline, raised side routes and strong landmarks.
  block(0,-.5,0,56,1,56,floorMat);
  block(0,9,-28,56,18,1,wallMat);block(0,9,28,56,18,1,wallMat);
@@ -204,7 +220,7 @@ function start(training=false,daily=false){stage=1;score=0;kills=0;hp=100;combo=
 function endRun(){save.highestStage=Math.max(save.highestStage,stage);save.highestScore=Math.max(save.highestScore,Math.floor(score));save.kills+=kills;save.distance+=Math.floor(distance);save.longestCombo=Math.max(save.longestCombo,bestCombo);save.highestSpeed=Math.max(save.highestSpeed,bestSpeed);persist();$('#deathcopy').textContent='STAGE '+stage+' // SCORE '+Math.floor(score).toLocaleString()+' // '+kills+' ELIMINATIONS // BEST FLOW x'+bestCombo.toFixed(1)+'. PERSONAL BEST: '+save.highestScore.toLocaleString()+'.';ui('dead');}
 function nextStage(){stage++;score+=stage*100;hp=Math.min(100,hp+15);mag.ARC=Math.min(12,mag.ARC+5);mag.BREACH=Math.min(6,mag.BREACH+2);mag.RAIL=Math.min(4,mag.RAIL+1);buildArena();note('SECTOR '+String(stage).padStart(2,'0')+' // INCOMING');updateObjective();}
 function hurt(n:number){if(mode!=='playing'||hurtIFrames>0)return;hurtIFrames=.72;hp-=n;$('#hud').classList.add('taking-damage');setTimeout(()=>$('#hud').classList.remove('taking-damage'),180);sound(65,.13,'sawtooth',.06);if(hp<=0)endRun();hud();}
-function damage(e:Enemy,n:number){e.hp-=n;e.root.scale.setScalar(1.1);const bonus=Math.floor(velocity.length()*1.8)+(grounded?0:35)+(sliding?25:0)+(grapple?50:0);score+=Math.round(n*.35+bonus)*combo;if(e.hp<=0){e.alive=false;addDeathBurst(e.root.position,({RUNNER:0xff7048,SNIPER:0x72c9ff,TANK:0xffb36b,DRONE:0xc29aff,INTERCEPTOR:0xffa04a} as Record<Kind,number>)[e.kind]);foes.remove(e.root);kills++;combo=Math.min(8,combo+.35);comboTime=4.5;bestCombo=Math.max(bestCombo,combo);score+=Math.round((100+bonus)*combo);note((velocity.length()>13?'KINETIC ELIMINATION':!grounded?'AIRBORNE ELIMINATION':'HOSTILE NEUTRALIZED')+'  +'+Math.round((100+bonus)*combo));sound(520,.13,'triangle',.05);if(e.boss){save.bossesDefeated++;$('#bossbar').classList.add('hidden');}}else sound(160,.035,'square',.02);hud();}
+function damage(e:Enemy,n:number){e.hp-=n;e.root.scale.setScalar(1.1);const bonus=Math.floor(velocity.length()*1.8)+(grounded?0:35)+(sliding?25:0)+(grapple?50:0);score+=Math.round(n*.35+bonus)*combo;if(e.hp<=0){e.alive=false;if((kills+1)%3===0)spawnPickup(e.root.position);addDeathBurst(e.root.position,({RUNNER:0xff7048,SNIPER:0x72c9ff,TANK:0xffb36b,DRONE:0xc29aff,INTERCEPTOR:0xffa04a} as Record<Kind,number>)[e.kind]);foes.remove(e.root);kills++;combo=Math.min(8,combo+.35);comboTime=4.5;bestCombo=Math.max(bestCombo,combo);score+=Math.round((100+bonus)*combo);note((velocity.length()>13?'KINETIC ELIMINATION':!grounded?'AIRBORNE ELIMINATION':'HOSTILE NEUTRALIZED')+'  +'+Math.round((100+bonus)*combo));sound(520,.13,'triangle',.05);if(e.boss){save.bossesDefeated++;$('#bossbar').classList.add('hidden');}}else sound(160,.035,'square',.02);hud();}
 function shoot(){
  if(fireCD>0||reloadTime>0)return;
  if(mag[weapon]<=0){note('MAG EMPTY // PRESS R TO RELOAD');$('#ammo').classList.add('ammo-low');reload();return;}
@@ -330,7 +346,7 @@ function update(dt:number){
  if(playerShotLife>0){playerShotLife-=dt;if(playerShotLife<=0)playerShot.visible=false;}
  if(muzzleLife>0){muzzleLife-=dt;muzzleFlash.material.opacity=Math.max(0,muzzleLife/.055);if(muzzleLife<=0)muzzleFlash.visible=false;}
  if(noticeTime>0){noticeTime-=dt;if(noticeTime<=0)$('#notice').textContent='';}
- movePlayer(dt);updateEnemies(dt);updateEnemyProjectiles(dt);updateHazard(dt);
+ movePlayer(dt);updateEnemies(dt);updateEnemyProjectiles(dt);updatePickups(dt);updateHazard(dt);
  if(mode==='playing'&&enemies.every(e=>!e.alive))nextStage();
 }
 let last=0,acc=0,uiAccumulator=0;
