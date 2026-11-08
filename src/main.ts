@@ -4,7 +4,7 @@ import './style.css';
 type Mode='menu'|'playing'|'paused'|'dead'|'training'|'settings'|'stats';
 type Kind='RUNNER'|'SNIPER'|'TANK'|'DRONE'|'INTERCEPTOR';
 type Weapon='ARC'|'BREACH'|'RAIL';
-type Enemy={root:THREE.Group;core:THREE.Mesh;kind:Kind;hp:number;max:number;speed:number;cool:number;alive:boolean;boss:boolean};
+type Enemy={root:THREE.Group;core:THREE.Mesh;hitProxy:THREE.Mesh;kind:Kind;hp:number;max:number;speed:number;cool:number;alive:boolean;boss:boolean};
 type Save={runs:number;highestStage:number;highestScore:number;kills:number;distance:number;longestCombo:number;highestSpeed:number;bossesDefeated:number};
 const $=(s:string)=>document.querySelector<HTMLElement>(s)!;
 const clamp=(v:number,a:number,b:number)=>Math.max(a,Math.min(b,v));
@@ -43,7 +43,7 @@ const orangeMat=new THREE.MeshStandardMaterial({color:0xff6b35,emissive:0x8b260b
 const blueMat=new THREE.MeshStandardMaterial({color:0x4e9acb,emissive:0x153b5b,emissiveIntensity:1.1});
 const box=new THREE.BoxGeometry(1,1,1),colliders:THREE.Box3[]=[];
 function block(x:number,y:number,z:number,sx:number,sy:number,sz:number,mat:THREE.Material,solid=true){const m=new THREE.Mesh(box,mat);m.position.set(x,y,z);m.scale.set(sx,sy,sz);world.add(m);if(solid)colliders.push(new THREE.Box3().setFromObject(m));return m;}
-function clear(g:THREE.Group){for(const o of [...g.children]){g.remove(o);if(o instanceof THREE.Mesh)o.geometry.dispose();}}
+function clear(g:THREE.Group){for(const o of [...g.children]){g.remove(o);}}
 let mode:Mode='menu',stage=1,score=0,kills=0,hp=100,combo=1,bestCombo=1,comboTime=0,distance=0,bestSpeed=0,hurtIFrames=0;
 let weapon:Weapon='ARC',mag:Record<Weapon,number>={ARC:12,BREACH:6,RAIL:4},reserve:Record<Weapon,number>={ARC:72,BREACH:30,RAIL:20};
 const weaponData:Record<Weapon,{name:string;damage:number;rate:number;reload:number;spread:number;size:number}>={ARC:{name:'ARC PISTOL',damage:28,rate:.19,reload:1.1,spread:.006,size:12},BREACH:{name:'BREACH SHOTGUN',damage:17,rate:.72,reload:1.5,spread:.075,size:6},RAIL:{name:'RAIL PRECISION',damage:105,rate:1.05,reload:1.8,spread:0,size:4}};
@@ -52,12 +52,18 @@ const keys=new Set<string>(),velocity=new THREE.Vector3(),position=new THREE.Vec
 let yaw=0,pitch=0,grounded=false,sliding=false,slideTime=0,slideCooldown=0,slideNeedsRelease=false,landingKick=0,wasGrounded=true,wallrun=0,wallSide=0,settingsReturn:Mode='menu',coyote=0,jumpBuffer=0,grapple:THREE.Vector3|null=null,grappleCD=0,fireCD=0,reloadTime=0,overdrive=0,ability=100,noticeTime=0,walkPhase=0;
 const ray=new THREE.Raycaster(),clock=new THREE.Clock();
 const visualEffects:{object:THREE.Object3D;life:number}[]=[];
+const hitProxyMaterial=new THREE.MeshBasicMaterial({visible:false,depthWrite:false});
+const shotGeometry=new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(),new THREE.Vector3()]);
+const shotMaterial=new THREE.LineBasicMaterial({color:0xffd18a,transparent:true,opacity:1,depthTest:false});
+const playerShot=new THREE.Line(shotGeometry,shotMaterial);playerShot.renderOrder=30;playerShot.visible=false;scene.add(playerShot);
+const muzzleFlash=new THREE.Mesh(new THREE.SphereGeometry(.12,8,6),new THREE.MeshBasicMaterial({color:0xffc078,transparent:true,opacity:0,depthWrite:false}));muzzleFlash.visible=false;viewModel.add(muzzleFlash);muzzleFlash.position.set(.12,.02,-.78);
+let playerShotLife=0,muzzleLife=0;
 function addTracer(from:THREE.Vector3,to:THREE.Vector3,color:number=0xffb15e,life=.13){const geo=new THREE.BufferGeometry().setFromPoints([from,to]);const line=new THREE.Line(geo,new THREE.LineBasicMaterial({color,transparent:true,opacity:.95,depthTest:false}));line.renderOrder=20;scene.add(line);visualEffects.push({object:line,life});}
 function note(t:string){$('#notice').textContent=t;noticeTime=1.8;}
 function sound(freq:number,dur=.08,type:OscillatorType='sawtooth',vol=.035){try{const c=new AudioContext(),o=c.createOscillator(),g=c.createGain();o.type=type;o.frequency.value=freq;g.gain.setValueAtTime(vol,c.currentTime);g.gain.exponentialRampToValueAtTime(.001,c.currentTime+dur);o.connect(g);g.connect(c.destination);o.start();o.stop(c.currentTime+dur);o.onended=()=>c.close();}catch{}}
 function ui(next:Mode){mode=next;for(const id of ['menu','pause','dead','settings','stats'])$('#'+id).classList.toggle('hidden',id!==next);$('#hud').classList.toggle('active',next==='playing'||next==='training');if(next!=='playing'&&next!=='training'&&document.pointerLockElement)document.exitPointerLock();$('#hint').classList.toggle('hidden',next!=='playing'&&next!=='training');}
 function setWeaponModel(){const v=weapon==='ARC'?{body:[1,1,1],barrel:1,top:[1,1,1]}:weapon==='BREACH'?{body:[1.28,1.12,1.2],barrel:1.45,top:[1.15,1.2,1.25]}:{body:[.92,.95,1.28],barrel:2.05,top:[.9,.9,1.65]};gunBody.scale.set(...v.body as [number,number,number]);gunBarrel.scale.z=v.barrel;gunTop.scale.set(...v.top as [number,number,number]);gunBarrel.position.z=weapon==='ARC' ? -0.42 : weapon==='BREACH' ? -0.5 : -0.66;viewModel.position.x=weapon==='BREACH' ? 0.38 : 0.34;viewModel.position.z=weapon==='RAIL'?-.72:-.62;}
-function hud(){setWeaponModel(); $('#stage').textContent=String(stage).padStart(2,'0');$('#score').textContent=Math.floor(score).toString().padStart(6,'0');$('#health').innerHTML=Math.max(0,Math.ceil(hp))+' <small>/ 100 HP</small>';$('#weapon').textContent=weaponData[weapon].name;$('#ammo').textContent=mag[weapon]+' / '+reserve[weapon]+' · 1/2/3 SWITCH';$('#combo').textContent='FLOW x'+combo.toFixed(1); }
+function hud(){setWeaponModel(); $('#stage').textContent=String(stage).padStart(2,'0');$('#score').textContent=Math.floor(score).toString().padStart(6,'0');$('#health').innerHTML=Math.max(0,Math.ceil(hp))+' <small>/ 100 HP</small>';$('#weapon').textContent=weaponData[weapon].name;$('#ammo').textContent=mag[weapon]+' / '+reserve[weapon]+' · R RELOAD';$('#ammo').classList.toggle('ammo-low',mag[weapon]<=Math.max(1,Math.ceil(weaponData[weapon].size*.25)));$('#combo').textContent='FLOW x'+combo.toFixed(1); }
 function spawn(kind:Kind,p:THREE.Vector3,boss=false){
  const g=new THREE.Group(),colors:Record<Kind,number>={RUNNER:0xe85e45,SNIPER:0x64a9db,TANK:0x9a6e53,DRONE:0x9a7ee5,INTERCEPTOR:0xffa04a};
  const scale=boss?1.55:kind==='TANK'?1.3:1;
@@ -93,10 +99,10 @@ function spawn(kind:Kind,p:THREE.Vector3,boss=false){
    if(kind==='INTERCEPTOR'){add(new THREE.BoxGeometry(1.2,.12,.3),dark,0,1.25,.08);add(new THREE.BoxGeometry(.12,.4,.12),glowMat,0,.95,-.25);}
  }
  const core=add(new THREE.SphereGeometry(boss?.58:.42,14,10),new THREE.MeshBasicMaterial({color:0xffbd72}),0,kind==='DRONE'?0:1.05*scale,-.28);
- core.userData.hitTarget=true;
+ const hitProxy=new THREE.Mesh(new THREE.SphereGeometry(kind==='TANK'?1.18:kind==='DRONE'?.92:.88,10,8),hitProxyMaterial);hitProxy.position.set(0,kind==='DRONE'?0:.94*scale,0);hitProxy.userData.hitTarget=true;g.add(hitProxy);
  g.position.copy(p);foes.add(g);
  const h=boss?850:kind==='TANK'?210:kind==='DRONE'?55:kind==='SNIPER'?65:kind==='INTERCEPTOR'?140:48;
- enemies.push({root:g,core,kind,hp:h,max:h,speed:kind==='RUNNER'?3.8:kind==='INTERCEPTOR'?5.5:kind==='TANK'?1.5:kind==='DRONE'?2.2:0,cool:Math.random()+1.3,alive:true,boss});
+ enemies.push({root:g,core,hitProxy,kind,hp:h,max:h,speed:kind==='RUNNER'?3.8:kind==='INTERCEPTOR'?5.5:kind==='TANK'?1.5:kind==='DRONE'?2.2:0,cool:Math.random()+1.3,alive:true,boss});
  if(boss){$('#bossbar').classList.remove('hidden');$('#bossname').textContent=stage%25===0?'THE COLOSSUS':'THE HUNTER';}
 }
 function buildArena(){colliders.length=0;clear(world);clear(foes);enemies=[];
@@ -134,15 +140,14 @@ function buildArena(){colliders.length=0;clear(world);clear(foes);enemies=[];
  const reactorLight=new THREE.PointLight(0xff642e,16,24);reactorLight.position.set(0,3,-23);scene.add(reactorLight);
  position.set(0,1.7,17);velocity.set(0,0,0);yaw=0;pitch=0;camera.position.copy(position);camera.rotation.set(pitch,yaw,0,'YXZ');hp=100;grounded=true;sliding=false;grapple=null;grappleCD=0;wallrun=0;coyote=.12;
  if(mode!=='training'){
-   const count=Math.min(3+Math.floor(stage*.5),12);
+   const count=stage===1?3:stage%5===0?4:stage%3===0?5:4;
    const types:Kind[]=['RUNNER','RUNNER','SNIPER','DRONE','TANK','INTERCEPTOR'];
    for(let i=0;i<count;i++){
      const xs=[-9,0,9,-14,14,-5,5,0,-18,18,-11,11],zs=[-10,-13,-10,-18,-18,-22,-22,-25,-6,-6,-15,-15];
-     const kind=stage===1?(['RUNNER','RUNNER','SNIPER'][i%3] as Kind):types[(i+stage)%types.length];
+     const kind=stage===1?(['RUNNER','RUNNER','SNIPER'][i%3] as Kind):stage%5===0?(i===0?'TANK':i===1?'DRONE':i===2?'SNIPER':'INTERCEPTOR'):stage%3===0?(i<2?'INTERCEPTOR':i===2?'DRONE':i===3?'RUNNER':'SNIPER'):types[(i+stage)%types.length];
      spawn(kind,new THREE.Vector3(xs[i],kind==='DRONE'?3:0,zs[i]));
    }
-   if(stage%10===0)spawn('INTERCEPTOR',new THREE.Vector3(0,0,-19),true);
-   if(stage%25===0)spawn('TANK',new THREE.Vector3(0,0,-21),true);
+   if(stage%5===0)spawn('TANK',new THREE.Vector3(0,0,-21),true);
  }
  $('#bossbar').classList.toggle('hidden',!enemies.some(e=>e.boss));hud();updateObjective();}
 function updateObjective(){
@@ -157,30 +162,28 @@ function hurt(n:number){if(mode!=='playing'||hurtIFrames>0)return;hurtIFrames=.7
 function damage(e:Enemy,n:number){e.hp-=n;const bonus=Math.floor(velocity.length()*1.8)+(grounded?0:35)+(sliding?25:0)+(grapple?50:0);score+=Math.round(n*.35+bonus)*combo;if(e.hp<=0){e.alive=false;foes.remove(e.root);kills++;combo=Math.min(8,combo+.35);comboTime=4.5;bestCombo=Math.max(bestCombo,combo);score+=Math.round((100+bonus)*combo);note((velocity.length()>13?'KINETIC ELIMINATION':!grounded?'AIRBORNE ELIMINATION':'HOSTILE NEUTRALIZED')+'  +'+Math.round((100+bonus)*combo));sound(520,.13,'triangle',.05);if(e.boss){save.bossesDefeated++;$('#bossbar').classList.add('hidden');}if(enemies.every(x=>!x.alive))nextStage();}else sound(160,.035,'square',.02);hud();}
 function shoot(){
  if(fireCD>0||reloadTime>0)return;
- if(mag[weapon]<=0){reload();return;}
+ if(mag[weapon]<=0){note('MAG EMPTY // PRESS R TO RELOAD');$('#ammo').classList.add('ammo-low');reload();return;}
  const w=weaponData[weapon];mag[weapon]--;fireCD=w.rate;
  sound(weapon==='RAIL'?110:weapon==='BREACH'?75:220,weapon==='BREACH'?.2:.09,weapon==='RAIL'?'triangle':'sawtooth',weapon==='BREACH'?.09:.045);
  const dir=new THREE.Vector3();camera.getWorldDirection(dir);
  for(let i=0;i<(weapon==='BREACH'?7:1);i++){
    const shotDir=dir.clone().add(new THREE.Vector3((Math.random()-.5)*w.spread,(Math.random()-.5)*w.spread,0).applyQuaternion(camera.quaternion)).normalize();
    ray.set(camera.position,shotDir);ray.far=weapon==='RAIL'?150:65;
-   const targets=enemies.filter(e=>e.alive).map(e=>e.root);
-   const hits=ray.intersectObjects(targets,true);
-   const hit=hits[0],end=hit?hit.point.clone():camera.position.clone().addScaledVector(shotDir,ray.far);
+   const targets=enemies.filter(e=>e.alive).map(e=>e.hitProxy);
+   const hits=ray.intersectObjects(targets,false);
+   const hit=hits[0],end=hit?hit.point:camera.position.clone().addScaledVector(shotDir,ray.far);
    const muzzle=camera.position.clone().addScaledVector(shotDir,.8).add(new THREE.Vector3(.16,-.12,0).applyQuaternion(camera.quaternion));
-   addTracer(muzzle,end,weapon==='RAIL'?0x8feaff:weapon==='BREACH'?0xff5a24:0xffd18a,weapon==='RAIL'?.34:.22);
-   const flash=new THREE.Mesh(new THREE.SphereGeometry(weapon==='BREACH'?.15:.09,8,6),new THREE.MeshBasicMaterial({color:weapon==='RAIL'?0x9ceaff:0xffb15e,transparent:true,opacity:.9}));flash.position.copy(muzzle);scene.add(flash);visualEffects.push({object:flash,life:.07});
+   if(i===0){shotGeometry.setFromPoints([muzzle,end]);shotMaterial.color.setHex(weapon==='RAIL'?0x8feaff:weapon==='BREACH'?0xff5a24:0xffd18a);playerShot.visible=true;playerShotLife=weapon==='RAIL'?.12:.075;muzzleFlash.material.color.setHex(weapon==='RAIL'?0x9ceaff:0xffb15e);muzzleFlash.material.opacity=1;muzzleFlash.scale.setScalar(weapon==='BREACH'?1.8:1);muzzleFlash.visible=true;muzzleLife=.055;}
    if(hit){
-     $('#crosshair').classList.add('hit');setTimeout(()=>$('#crosshair').classList.remove('hit'),90);
-     let node:THREE.Object3D|null=hit.object;let target:Enemy|undefined;
-     while(node&&!target){target=enemies.find(e=>e.alive&&e.root===node);node=node.parent;}
+     const target=enemies.find(e=>e.alive&&e.hitProxy===hit.object);
+     $('#crosshair').classList.add('hit');$('#crosshair').classList.add('hit-confirm');
      if(target)damage(target,w.damage);
    }
  }
  if(weapon==='RAIL')velocity.addScaledVector(dir,-.45);
  hud();
 }
-function reload(){if(reloadTime>0||mag[weapon]===weaponData[weapon].size||reserve[weapon]<=0)return;reloadTime=weaponData[weapon].reload;note('RELOADING');}
+function reload(){if(reloadTime>0||mag[weapon]===weaponData[weapon].size||reserve[weapon]<=0)return;reloadTime=weaponData[weapon].reload;$('#ammo').classList.remove('ammo-low');$('#ammo').classList.add('reloading');note('RELOADING // '+weaponData[weapon].reload.toFixed(1)+' SEC');}
 function grappleStart(){if(grappleCD>0)return;const d=new THREE.Vector3();camera.getWorldDirection(d);ray.set(camera.position,d);ray.far=38;const hit=ray.intersectObjects(world.children);if(hit.length){grapple=hit[0].point.clone();grappleCD=2;note('TETHER ACQUIRED');sound(680,.13,'sine',.045);}else note('NO GRAPPLE ANCHOR');}
 function updateEnemies(dt:number){
  for(const e of enemies){
@@ -253,7 +256,8 @@ function movePlayer(dt:number){
  // Keep the player inside the actual arena walls, not an arbitrary 40m sub-area.
  position.x=clamp(position.x,-25.4,25.4);position.z=clamp(position.z,-25.4,25.4);
  if(hurtIFrames>0)hurtIFrames=Math.max(0,hurtIFrames-dt);if(grappleCD>0)grappleCD-=dt;if(jumpBuffer>0)jumpBuffer-=dt;if(fireCD>0)fireCD-=dt;
- if(reloadTime>0){reloadTime-=dt;if(reloadTime<=0){const n=Math.min(weaponData[weapon].size-mag[weapon],reserve[weapon]);mag[weapon]+=n;reserve[weapon]-=n;hud();}}
+ if(playerShotLife>0){playerShotLife-=dt;if(playerShotLife<=0)playerShot.visible=false;}if(muzzleLife>0){muzzleLife-=dt;muzzleFlash.material.opacity=Math.max(0,muzzleLife/.055);if(muzzleLife<=0)muzzleFlash.visible=false;}
+ if(reloadTime>0){reloadTime-=dt;if(reloadTime<=0){const n=Math.min(weaponData[weapon].size-mag[weapon],reserve[weapon]);mag[weapon]+=n;reserve[weapon]-=n;$('#ammo').classList.remove('reloading','ammo-low');hud();}}
  if(overdrive>0)overdrive-=dt;if(ability<100)ability=Math.min(100,ability+dt*8);
  const speed=Math.hypot(velocity.x,velocity.z);walkPhase+=dt*speed*.5;distance+=speed*dt;bestSpeed=Math.max(bestSpeed,speed);
  if(speed>12&&grounded){comboTime=Math.max(comboTime,.3);score+=speed*dt*.3;}if(comboTime>0)comboTime-=dt;else combo=Math.max(1,combo-dt*.22);
