@@ -9,3 +9,18 @@
 .settings-row select{background:#151a20;color:#f1f2f3;border:1px solid #30363e;padding:6px}.settings-row input[type=range]{accent-color:#ff7138;max-width:150px}
 #hud{z-index:2}.screen{z-index:5}.hint{z-index:4}
 @media(max-width:650px){.bossbar{top:19%;width:70vw}.statgrid{gap:7px}.stat{padding:10px}.stat b{font-size:21px}.hint{font-size:8px}}
+
+/* Build 02: onboarding and readable in-run instructions */
+.menu-intro{max-width:430px;margin:-18px 0 18px;padding:14px 17px;border-left:2px solid #ff7138;background:rgba(15,22,29,.72)}
+.menu-intro b,.control-guide>b,.inrun-controls>b{font-size:10px;letter-spacing:.2em;color:#ff9a69}
+.menu-intro p{margin:7px 0 0;color:#c2cbd3;font-size:11px;line-height:1.65;max-width:390px}
+.control-guide{display:grid;grid-template-columns:repeat(3,max-content);gap:8px 18px;margin-top:22px;max-width:520px;font-size:10px;color:#b9c3cd}
+.control-guide>b{grid-column:1/-1;margin-bottom:2px}
+kbd{display:inline-block;min-width:22px;padding:3px 5px;margin-right:5px;text-align:center;border:1px solid #52606c;border-bottom-width:2px;border-radius:3px;background:#19232d;color:#fff;font:9px 'DM Mono',monospace}
+.menu{width:min(330px,84vw)}
+.menu button{display:flex;justify-content:space-between;align-items:center}
+.objective{position:absolute;top:102px;left:50%;transform:translateX(-50%);min-width:250px;text-align:center;padding:10px 18px;background:rgba(7,12,17,.76);border:1px solid rgba(104,139,163,.35);border-top:2px solid #ff7138;backdrop-filter:blur(8px)}
+.objective b,.objective span{display:block}.objective b{font-size:9px;letter-spacing:.2em;color:#ff9a69}.objective span{margin-top:5px;font-size:11px;color:#f0f4f7}
+.inrun-controls{position:absolute;right:28px;top:108px;display:grid;gap:5px;padding:11px 13px;background:rgba(7,12,17,.62);border:1px solid rgba(104,139,163,.25);font-size:9px;color:#c2cbd3;line-height:1.35}
+@media(max-width:800px){.control-guide{grid-template-columns:repeat(2,max-content);gap:7px 12px}.inrun-controls{display:none}.objective{top:92px;min-width:220px}.menu-intro{max-width:390px}}
+@media(max-height:720px){.screen{padding-top:20px;padding-bottom:20px}.brand{font-size:clamp(58px,10vh,110px);margin:14px 0}.tagline{margin-bottom:20px}.menu-intro{margin:0 0 12px}.control-guide{margin-top:12px;gap:5px 14px}.menu button{padding:11px 15px}.menu{gap:6px}}
