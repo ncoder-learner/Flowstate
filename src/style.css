@@ -24,3 +24,10 @@ kbd{display:inline-block;min-width:22px;padding:3px 5px;margin-right:5px;text-al
 .inrun-controls{position:absolute;right:28px;top:108px;display:grid;gap:5px;padding:11px 13px;background:rgba(7,12,17,.62);border:1px solid rgba(104,139,163,.25);font-size:9px;color:#c2cbd3;line-height:1.35}
 @media(max-width:800px){.control-guide{grid-template-columns:repeat(2,max-content);gap:7px 12px}.inrun-controls{display:none}.objective{top:92px;min-width:220px}.menu-intro{max-width:390px}}
 @media(max-height:720px){.screen{padding-top:20px;padding-bottom:20px}.brand{font-size:clamp(58px,10vh,110px);margin:14px 0}.tagline{margin-bottom:20px}.menu-intro{margin:0 0 12px}.control-guide{margin-top:12px;gap:5px 14px}.menu button{padding:11px 15px}.menu{gap:6px}}
+
+/* Combat readability pass */
+#hud.taking-damage:after{content:"";position:absolute;inset:0;pointer-events:none;border:0;background:radial-gradient(ellipse at center,transparent 35%,rgba(255,20,35,.38) 100%);box-shadow:inset 0 0 90px rgba(255,20,35,.62);animation:damagePulse .18s ease-out}
+@keyframes damagePulse{from{opacity:1}to{opacity:.25}}
+#crosshair.hit:before,#crosshair.hit:after{background:#ff7138;box-shadow:0 0 8px #ff7138}
+.objective{box-shadow:0 8px 32px rgba(0,0,0,.32)}
+.inrun-controls{border-left:2px solid rgba(255,113,56,.7);backdrop-filter:blur(10px)}
