@@ -50,6 +50,8 @@ let weapon:Weapon='ARC',mag:Record<Weapon,number>={ARC:12,BREACH:6,RAIL:4},reser
 const weaponData:Record<Weapon,{name:string;damage:number;rate:number;reload:number;spread:number;size:number}>={ARC:{name:'ARC PISTOL',damage:28,rate:.19,reload:1.1,spread:.006,size:12},BREACH:{name:'BREACH SHOTGUN',damage:17,rate:.72,reload:1.5,spread:.075,size:6},RAIL:{name:'RAIL PRECISION',damage:105,rate:1.05,reload:1.8,spread:0,size:4}};
 let enemies:Enemy[]=[];
 const enemyProjectiles:EnemyProjectile[]=[];
+let hazardTimer=0,hazardHitCooldown=0,hazardCycle=-1;
+const hazardBeam=new THREE.Mesh(new THREE.BoxGeometry(52,.22,.34),new THREE.MeshBasicMaterial({color:0xff9a42,transparent:true,opacity:.9,depthWrite:false}));hazardBeam.position.y=.58;hazardBeam.visible=false;hazardBeam.renderOrder=25;scene.add(hazardBeam);
 const keys=new Set<string>(),velocity=new THREE.Vector3(),position=new THREE.Vector3(0,1.7,8),forward=new THREE.Vector3(),right=new THREE.Vector3(),move=new THREE.Vector3();
 let yaw=0,pitch=0,grounded=false,sliding=false,slideTime=0,slideCooldown=0,slideNeedsRelease=false,landingKick=0,wasGrounded=true,wallrun=0,wallSide=0,settingsReturn:Mode='menu',coyote=0,jumpBuffer=0,grapple:THREE.Vector3|null=null,grappleCD=0,fireCD=0,reloadTime=0,overdrive=0,ability=100,noticeTime=0,walkPhase=0;
 const ray=new THREE.Raycaster(),clock=new THREE.Clock();
@@ -68,6 +70,16 @@ function launchEnemyProjectile(from:THREE.Vector3,target:THREE.Vector3,speed:num
  enemyProjectiles.push({mesh,velocity:direction.multiplyScalar(speed),damage,life:3.2});
 }
 function clearEnemyProjectiles(){for(const p of enemyProjectiles){scene.remove(p.mesh);p.mesh.geometry.dispose();const materials=p.mesh.material; if(Array.isArray(materials))materials.forEach(m=>m.dispose());else materials.dispose();}enemyProjectiles.length=0;}
+function updateHazard(dt:number){
+ if(mode!=='playing'||stage%4!==0){hazardBeam.visible=false;return;}
+ hazardTimer+=dt;if(hazardHitCooldown>0)hazardHitCooldown=Math.max(0,hazardHitCooldown-dt);
+ const cycle=Math.floor(hazardTimer/7),phase=hazardTimer%7;
+ if(cycle!==hazardCycle){hazardCycle=cycle;note('OVERLOAD SWEEP // WATCH THE FLOOR');}
+ if(phase<1.5){hazardBeam.visible=true;hazardBeam.position.z=-20; (hazardBeam.material as THREE.MeshBasicMaterial).color.setHex(0xffa044);(hazardBeam.material as THREE.MeshBasicMaterial).opacity=.45+.25*Math.sin(phase*8);}
+ else if(phase<3.5){const progress=(phase-1.5)/2;hazardBeam.visible=true;hazardBeam.position.z=-20+40*progress;(hazardBeam.material as THREE.MeshBasicMaterial).color.setHex(0xff244f);(hazardBeam.material as THREE.MeshBasicMaterial).opacity=1;
+   if(Math.abs(position.z-hazardBeam.position.z)<.85&&Math.abs(position.x)<25&&position.y<2.65&&hazardHitCooldown<=0){hurt(14);hazardHitCooldown=.85;note('OVERLOAD HIT // JUMP THE SWEEP');}
+ }else hazardBeam.visible=false;
+}
 function updateEnemyProjectiles(dt:number){
  for(let i=enemyProjectiles.length-1;i>=0;i--){const p=enemyProjectiles[i],step=p.velocity.length()*dt;p.life-=dt;
    ray.set(p.mesh.position,p.velocity.clone().normalize());ray.far=step+.16;
@@ -125,7 +137,7 @@ function spawn(kind:Kind,p:THREE.Vector3,boss=false){
  if(boss){$('#bossbar').classList.remove('hidden');$('#bossname').textContent=stage%25===0?'THE COLOSSUS':'THE HUNTER';}
 }
 const arenaLights:THREE.PointLight[]=[];
-function buildArena(){clearEnemyProjectiles();for(const light of arenaLights)scene.remove(light);arenaLights.length=0;colliders.length=0;clear(world);clear(foes);enemies=[];
+function buildArena(){hazardTimer=0;hazardHitCooldown=0;hazardCycle=-1;hazardBeam.visible=false;clearEnemyProjectiles();for(const light of arenaLights)scene.remove(light);arenaLights.length=0;colliders.length=0;clear(world);clear(foes);enemies=[];
  // Flat spawn lane, clear sightline, raised side routes and strong landmarks.
  block(0,-.5,0,56,1,56,floorMat);
  block(0,9,-28,56,18,1,wallMat);block(0,9,28,56,18,1,wallMat);
@@ -302,7 +314,7 @@ function update(dt:number){
  if(playerShotLife>0){playerShotLife-=dt;if(playerShotLife<=0)playerShot.visible=false;}
  if(muzzleLife>0){muzzleLife-=dt;muzzleFlash.material.opacity=Math.max(0,muzzleLife/.055);if(muzzleLife<=0)muzzleFlash.visible=false;}
  if(noticeTime>0){noticeTime-=dt;if(noticeTime<=0)$('#notice').textContent='';}
- movePlayer(dt);updateEnemies(dt);updateEnemyProjectiles(dt);
+ movePlayer(dt);updateEnemies(dt);updateEnemyProjectiles(dt);updateHazard(dt);
  if(mode==='playing'&&enemies.every(e=>!e.alive))nextStage();
 }
 let last=0,acc=0,uiAccumulator=0;
