@@ -44,7 +44,7 @@ const blueMat=new THREE.MeshStandardMaterial({color:0x4e9acb,emissive:0x153b5b,e
 const box=new THREE.BoxGeometry(1,1,1),colliders:THREE.Box3[]=[];
 function block(x:number,y:number,z:number,sx:number,sy:number,sz:number,mat:THREE.Material,solid=true){const m=new THREE.Mesh(box,mat);m.position.set(x,y,z);m.scale.set(sx,sy,sz);world.add(m);if(solid)colliders.push(new THREE.Box3().setFromObject(m));return m;}
 function clear(g:THREE.Group){for(const o of [...g.children]){g.remove(o);if(o instanceof THREE.Mesh)o.geometry.dispose();}}
-let mode:Mode='menu',stage=1,score=0,kills=0,hp=100,combo=1,bestCombo=1,comboTime=0,distance=0,bestSpeed=0;
+let mode:Mode='menu',stage=1,score=0,kills=0,hp=100,combo=1,bestCombo=1,comboTime=0,distance=0,bestSpeed=0,hurtIFrames=0;
 let weapon:Weapon='ARC',mag:Record<Weapon,number>={ARC:12,BREACH:6,RAIL:4},reserve:Record<Weapon,number>={ARC:72,BREACH:30,RAIL:20};
 const weaponData:Record<Weapon,{name:string;damage:number;rate:number;reload:number;spread:number;size:number}>={ARC:{name:'ARC PISTOL',damage:28,rate:.19,reload:1.1,spread:.006,size:12},BREACH:{name:'BREACH SHOTGUN',damage:17,rate:.72,reload:1.5,spread:.075,size:6},RAIL:{name:'RAIL PRECISION',damage:105,rate:1.05,reload:1.8,spread:0,size:4}};
 let enemies:Enemy[]=[];
@@ -135,7 +135,7 @@ function updateObjective(){
 function start(training=false,daily=false){stage=1;score=0;kills=0;hp=100;combo=1;bestCombo=1;comboTime=0;distance=0;ability=100;mag={ARC:12,BREACH:6,RAIL:4};reserve={ARC:72,BREACH:30,RAIL:20};mode=training?'training':'playing';if(!training)save.runs++;buildArena();ui(mode);note(daily?'DAILY CHALLENGE // SECTOR 01':training?'TRAINING // PRACTICE MOVEMENT':'OBJECTIVE // ELIMINATE ALL HOSTILES');updateObjective();}
 function endRun(){save.highestStage=Math.max(save.highestStage,stage);save.highestScore=Math.max(save.highestScore,Math.floor(score));save.kills+=kills;save.distance+=Math.floor(distance);save.longestCombo=Math.max(save.longestCombo,bestCombo);save.highestSpeed=Math.max(save.highestSpeed,bestSpeed);persist();$('#deathcopy').textContent='STAGE '+stage+' // SCORE '+Math.floor(score).toLocaleString()+' // '+kills+' ELIMINATIONS // BEST FLOW x'+bestCombo.toFixed(1)+'. PERSONAL BEST: '+save.highestScore.toLocaleString()+'.';ui('dead');}
 function nextStage(){stage++;score+=stage*100;hp=Math.min(100,hp+15);mag.ARC=Math.min(12,mag.ARC+5);mag.BREACH=Math.min(6,mag.BREACH+2);mag.RAIL=Math.min(4,mag.RAIL+1);buildArena();note('SECTOR '+String(stage).padStart(2,'0')+' // INCOMING');updateObjective();}
-function hurt(n:number){if(mode!=='playing')return;hp-=n;sound(65,.13,'sawtooth',.06);if(hp<=0)endRun();hud();}
+function hurt(n:number){if(mode!=='playing'||hurtIFrames>0)return;hurtIFrames=.72;hp-=n;$('#hud').classList.add('taking-damage');setTimeout(()=>$('#hud').classList.remove('taking-damage'),180);sound(65,.13,'sawtooth',.06);if(hp<=0)endRun();hud();}
 function damage(e:Enemy,n:number){e.hp-=n;const bonus=Math.floor(velocity.length()*1.8)+(grounded?0:35)+(sliding?25:0)+(grapple?50:0);score+=Math.round(n*.35+bonus)*combo;if(e.hp<=0){e.alive=false;foes.remove(e.root);kills++;combo=Math.min(8,combo+.35);comboTime=4.5;bestCombo=Math.max(bestCombo,combo);score+=Math.round((100+bonus)*combo);note((velocity.length()>13?'KINETIC ELIMINATION':!grounded?'AIRBORNE ELIMINATION':'HOSTILE NEUTRALIZED')+'  +'+Math.round((100+bonus)*combo));sound(520,.13,'triangle',.05);if(e.boss){save.bossesDefeated++;$('#bossbar').classList.add('hidden');}if(enemies.every(x=>!x.alive))nextStage();}else sound(160,.035,'square',.02);hud();}
 function shoot(){
  if(fireCD>0||reloadTime>0)return;
@@ -149,8 +149,9 @@ function shoot(){
    const targets=enemies.filter(e=>e.alive).map(e=>e.root);
    const hits=ray.intersectObjects(targets,true);
    const hit=hits[0],end=hit?hit.point.clone():camera.position.clone().addScaledVector(shotDir,ray.far);
-   const muzzle=camera.position.clone().addScaledVector(shotDir,.55);
-   addTracer(muzzle,end,weapon==='RAIL'?0x9ceaff:weapon==='BREACH'?0xff743e:0xffd18a,weapon==='RAIL'?.22:.12);
+   const muzzle=camera.position.clone().addScaledVector(shotDir,.8).add(new THREE.Vector3(.16,-.12,0).applyQuaternion(camera.quaternion));
+   addTracer(muzzle,end,weapon==='RAIL'?0x8feaff:weapon==='BREACH'?0xff5a24:0xffd18a,weapon==='RAIL'?.34:.22);
+   const flash=new THREE.Mesh(new THREE.SphereGeometry(weapon==='BREACH'?.15:.09,8,6),new THREE.MeshBasicMaterial({color:weapon==='RAIL'?0x9ceaff:0xffb15e,transparent:true,opacity:.9}));flash.position.copy(muzzle);scene.add(flash);visualEffects.push({object:flash,life:.07});
    if(hit){
      let node:THREE.Object3D|null=hit.object;let target:Enemy|undefined;
      while(node&&!target){target=enemies.find(e=>e.alive&&e.root===node);node=node.parent;}
@@ -169,14 +170,14 @@ function updateEnemies(dt:number){
    if(e.kind==='DRONE'){
      p.y=3+Math.sin(performance.now()*.001+e.root.id)*.8;
      if(dist>8)p.addScaledVector(d.normalize(),e.speed*dt*.45);
-     if(e.cool<0&&dist<28){const from=p.clone().add(new THREE.Vector3(0,0,0));addTracer(from,position.clone(),0xff3e48,.2);note('DRONE SHOT // MOVE TO DODGE');hurt(7);e.cool=2.2;}
+     if(e.cool<0&&dist<28){const from=p.clone();from.y=p.y;addTracer(from,position.clone(),0xff243f,.34);note('INCOMING // DRONE FIRE');hurt(4);e.cool=3.1;}
    }else if(['RUNNER','INTERCEPTOR','TANK'].includes(e.kind)){
      if(dist>1.8)p.addScaledVector(d.normalize(),e.speed*dt*(e.boss?1.35:1));
-     else if(e.cool<0){addTracer(p.clone().add(new THREE.Vector3(0,1,0)),position.clone(),0xff3e48,.18);note('MELEE HIT // KEEP YOUR DISTANCE');hurt(e.kind==='TANK'?18:12);e.cool=1.45;}
+     else if(e.cool<0){addTracer(p.clone().add(new THREE.Vector3(0,1,0)),position.clone(),0xff243f,.28);note('CONTACT ATTACK // CREATE DISTANCE');hurt(e.kind==='TANK'?9:6);e.cool=2.0;}
    }else if(e.kind==='SNIPER'&&e.cool<0&&dist<35){
-     addTracer(p.clone().add(new THREE.Vector3(0,1.5,0)),position.clone(),0xff3e48,.24);hurt(9);e.cool=2.8;note('SNIPER ROUND // BREAK LINE OF SIGHT');
+     addTracer(p.clone().add(new THREE.Vector3(0,1.5,0)),position.clone(),0xff243f,.38);hurt(6);e.cool=3.8;note('SNIPER HIT // BREAK LINE OF SIGHT');
    }
-   if(e.boss&&e.cool<0){addTracer(p.clone().add(new THREE.Vector3(0,1,0)),position.clone(),0xff3e48,.24);if(dist<12)hurt(12);e.cool=3.5;note('BOSS SHOCKWAVE // KEEP MOVING');}
+   if(e.boss&&e.cool<0){addTracer(p.clone().add(new THREE.Vector3(0,1,0)),position.clone(),0xff3e48,.24);if(dist<12)hurt(8);e.cool=4.2;note('BOSS SHOCKWAVE // KEEP MOVING');}
    e.root.lookAt(position.x,p.y+.5,position.z);
  }
 }
@@ -191,7 +192,7 @@ function movePlayer(dt:number){camera.getWorldDirection(forward);forward.y=0;for
  const next=position.clone().addScaledVector(velocity,dt),horizontal=next.clone();horizontal.y=position.y;if(!collides(horizontal)){position.x=next.x;position.z=next.z;}else{velocity.x*=.25;velocity.z*=.25;}
  const y=position.y+velocity.y*dt;let support:THREE.Box3|undefined;if(velocity.y<=0){const feet=position.y-1.7,nextFeet=y-1.7;support=colliders.find(c=>position.x>c.min.x-.34&&position.x<c.max.x+.34&&position.z>c.min.z-.34&&position.z<c.max.z+.34&&feet>=c.max.y-.06&&nextFeet<=c.max.y&&c.max.y>=0);}if(support){position.y=support.max.y+1.7;velocity.y=0;grounded=true;coyote=.12;}else if(y<=1.7){position.y=1.7;velocity.y=0;grounded=true;coyote=.12;}else{position.y=y;grounded=false;coyote=Math.max(0,coyote-dt);}
  if(position.y< -8)hurt(100);position.x=clamp(position.x,-19.7,19.7);position.z=clamp(position.z,-19.7,19.7);
- if(grappleCD>0)grappleCD-=dt;if(jumpBuffer>0)jumpBuffer-=dt;if(fireCD>0)fireCD-=dt;if(reloadTime>0){reloadTime-=dt;if(reloadTime<=0){const n=Math.min(weaponData[weapon].size-mag[weapon],reserve[weapon]);mag[weapon]+=n;reserve[weapon]-=n;hud();}}if(overdrive>0)overdrive-=dt;if(ability<100)ability=Math.min(100,ability+dt*8);
+ if(hurtIFrames>0)hurtIFrames=Math.max(0,hurtIFrames-dt);if(grappleCD>0)grappleCD-=dt;if(jumpBuffer>0)jumpBuffer-=dt;if(fireCD>0)fireCD-=dt;if(reloadTime>0){reloadTime-=dt;if(reloadTime<=0){const n=Math.min(weaponData[weapon].size-mag[weapon],reserve[weapon]);mag[weapon]+=n;reserve[weapon]-=n;hud();}}if(overdrive>0)overdrive-=dt;if(ability<100)ability=Math.min(100,ability+dt*8);
  const speed=velocity.length();viewModel.position.y=THREE.MathUtils.damp(viewModel.position.y,-.3+(sliding?-.12:0)+Math.sin(walkPhase*2)*Math.min(.012,speed*.0005),8,dt);distance+=speed*dt;bestSpeed=Math.max(bestSpeed,speed);if(speed>12&&grounded){comboTime=Math.max(comboTime,.3);score+=speed*dt*.3;}if(comboTime>0)comboTime-=dt;else combo=Math.max(1,combo-dt*.22);
  walkPhase+=dt*speed*.45;camera.position.set(position.x,position.y+(grounded?Math.sin(walkPhase)*Math.min(.035,speed*.0015):0),position.z);camera.rotation.set(pitch,yaw,0,'YXZ');camera.fov=THREE.MathUtils.damp(camera.fov,clamp(94+speed*.55,82,112),4,dt);camera.updateProjectionMatrix();$('#speed').textContent=Math.round(speed).toString();$('#combo').textContent='FLOW x'+combo.toFixed(1);$('#ability').textContent=grappleCD>0?'GRAPPLE RECHARGING':'GRAPPLE READY · Q OVERDRIVE';}
 function update(dt:number){if(mode!=='playing'&&mode!=='training')return;for(let i=visualEffects.length-1;i>=0;i--){const fx=visualEffects[i];fx.life-=dt;if(fx.life<=0){scene.remove(fx.object);if(fx.object instanceof THREE.Line){fx.object.geometry.dispose();(fx.object.material as THREE.Material).dispose();}visualEffects.splice(i,1);}}if(noticeTime>0){noticeTime-=dt;if(noticeTime<=0)$('#notice').textContent='';}movePlayer(dt);updateEnemies(dt);const boss=enemies.find(e=>e.boss&&e.alive);if(boss){$('#bossbar').classList.remove('hidden');$('#bossfill').style.width=(100*boss.hp/boss.max)+'%';}else $('#bossbar').classList.add('hidden');if(mode==='playing'&&enemies.every(e=>!e.alive))nextStage();updateObjective();hud();}
