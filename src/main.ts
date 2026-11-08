@@ -114,6 +114,24 @@ function buildArena(){colliders.length=0;clear(world);clear(foes);enemies=[];
  block(0,1.05,-5,5,2.1,1.4,darkMat);block(0,2.14,-5,4.8,.08,1.25,orangeMat,false);
  block(-6,1.3,-13,3,2.6,3,darkMat);block(6,1.3,-13,3,2.6,3,darkMat);
  block(0,.06,19,7,.12,7,orangeMat,false);block(0,5,-25,10,.5,.7,blueMat,false);
+ // Industrial arena dressing: illuminated pylons, overhead trusses, and lane markers.
+ for(const x of [-23,-17,17,23])for(const z of [-22,0,20]){
+   const shaft=new THREE.Mesh(new THREE.CylinderGeometry(.38,.58,7,8),darkMat);shaft.position.set(x,3.5,z);world.add(shaft);
+   const band=new THREE.Mesh(new THREE.TorusGeometry(.48,.075,6,12),x<0?blueMat:orangeMat);band.rotation.x=Math.PI/2;band.position.set(x,5.9,z);world.add(band);
+   const lamp=new THREE.PointLight(x<0?0x3b9dff:0xff7138,5,11);lamp.position.set(x,6.2,z);world.add(lamp);
+ }
+ for(const z of [-24,-16,-8,0,8,16,24]){
+   block(-27,7,z,.35,.18,5,blueMat,false);block(27,7,z,.35,.18,5,orangeMat,false);
+ }
+ for(const x of [-12,12]){
+   block(x,8,-7,8,.28,.35,darkMat,false);
+   block(x,8.18,-7,7.5,.06,.12,x<0?blueMat:orangeMat,false);
+ }
+ // Central reactor landmark with stacked emissive rings.
+ const reactor=new THREE.Group();reactor.position.set(0,0,-23);world.add(reactor);
+ const coreMesh=new THREE.Mesh(new THREE.CylinderGeometry(.65,.9,4.8,10),darkMat);coreMesh.position.y=2.4;reactor.add(coreMesh);
+ for(const y of [1.1,2.4,3.7]){const ring=new THREE.Mesh(new THREE.TorusGeometry(1.05,.09,8,24),orangeMat);ring.rotation.x=Math.PI/2;ring.position.y=y;reactor.add(ring);}
+ const reactorLight=new THREE.PointLight(0xff642e,16,24);reactorLight.position.set(0,3,-23);scene.add(reactorLight);
  position.set(0,1.7,17);velocity.set(0,0,0);yaw=0;pitch=0;camera.position.copy(position);camera.rotation.set(pitch,yaw,0,'YXZ');hp=100;grounded=true;sliding=false;grapple=null;grappleCD=0;wallrun=0;coyote=.12;
  if(mode!=='training'){
    const count=Math.min(3+Math.floor(stage*.5),12);
@@ -153,6 +171,7 @@ function shoot(){
    addTracer(muzzle,end,weapon==='RAIL'?0x8feaff:weapon==='BREACH'?0xff5a24:0xffd18a,weapon==='RAIL'?.34:.22);
    const flash=new THREE.Mesh(new THREE.SphereGeometry(weapon==='BREACH'?.15:.09,8,6),new THREE.MeshBasicMaterial({color:weapon==='RAIL'?0x9ceaff:0xffb15e,transparent:true,opacity:.9}));flash.position.copy(muzzle);scene.add(flash);visualEffects.push({object:flash,life:.07});
    if(hit){
+     $('#crosshair').classList.add('hit');setTimeout(()=>$('#crosshair').classList.remove('hit'),90);
      let node:THREE.Object3D|null=hit.object;let target:Enemy|undefined;
      while(node&&!target){target=enemies.find(e=>e.alive&&e.root===node);node=node.parent;}
      if(target)damage(target,w.damage);
