@@ -63,11 +63,9 @@ let playerShotLife=0,muzzleLife=0;
 function addTracer(from:THREE.Vector3,to:THREE.Vector3,color:number=0xffb15e,life=.13){const geo=new THREE.BufferGeometry().setFromPoints([from,to]);const line=new THREE.Line(geo,new THREE.LineBasicMaterial({color,transparent:true,opacity:.95,depthTest:false}));line.renderOrder=20;scene.add(line);visualEffects.push({object:line,life});}
 function launchEnemyProjectile(from:THREE.Vector3,target:THREE.Vector3,speed:number,damage:number){
  const direction=target.clone().sub(from).normalize();
- const mesh=new THREE.Mesh(new THREE.SphereGeometry(.2,10,8),new THREE.MeshBasicMaterial({color:0xff315b}));
+ const mesh=new THREE.Mesh(new THREE.SphereGeometry(.28,10,8),new THREE.MeshBasicMaterial({color:0xff315b}));
  mesh.position.copy(from);scene.add(mesh);
- const halo=new THREE.Mesh(new THREE.SphereGeometry(.34,8,6),new THREE.MeshBasicMaterial({color:0xff1747,transparent:true,opacity:.22,depthWrite:false}));mesh.add(halo);
  enemyProjectiles.push({mesh,velocity:direction.multiplyScalar(speed),damage,life:3.2});
- addTracer(from,from.clone().addScaledVector(direction,1.1),0xff315b,.18);
 }
 function clearEnemyProjectiles(){for(const p of enemyProjectiles){scene.remove(p.mesh);p.mesh.geometry.dispose();const materials=p.mesh.material; if(Array.isArray(materials))materials.forEach(m=>m.dispose());else materials.dispose();}enemyProjectiles.length=0;}
 function updateEnemyProjectiles(dt:number){
