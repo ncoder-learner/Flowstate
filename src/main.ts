@@ -60,7 +60,7 @@ const shotMaterial=new THREE.LineBasicMaterial({color:0xffd18a,transparent:true,
 const playerShot=new THREE.Line(shotGeometry,shotMaterial);playerShot.renderOrder=30;playerShot.visible=false;scene.add(playerShot);
 const muzzleFlash=new THREE.Mesh(new THREE.SphereGeometry(.12,8,6),new THREE.MeshBasicMaterial({color:0xffc078,transparent:true,opacity:0,depthWrite:false}));muzzleFlash.visible=false;viewModel.add(muzzleFlash);muzzleFlash.position.set(.12,.02,-.78);
 let playerShotLife=0,muzzleLife=0;
-function addTracer(from:THREE.Vector3,to:THREE.Vector3,color:number=0xffb15e,life=.13){const geo=new THREE.BufferGeometry().setFromPoints([from,to]);const line=new THREE.Line(geo,new THREE.LineBasicMaterial({color,transparent:true,opacity:.95,depthTest:false}));line.renderOrder=20;scene.add(line);visualEffects.push({object:line,life});}
+function addTracer(from:THREE.Vector3,to:THREE.Vector3,color:number=0xffb15e,life=.2){const glowGeo=new THREE.BufferGeometry().setFromPoints([from,to]);const glow=new THREE.Line(glowGeo,new THREE.LineBasicMaterial({color:0xff7138,transparent:true,opacity:.32,depthTest:false}));glow.renderOrder=19;scene.add(glow);visualEffects.push({object:glow,life});const geo=new THREE.BufferGeometry().setFromPoints([from,to]);const line=new THREE.Line(geo,new THREE.LineBasicMaterial({color,transparent:true,opacity:1,depthTest:false}));line.renderOrder=20;scene.add(line);visualEffects.push({object:line,life});}
 function launchEnemyProjectile(from:THREE.Vector3,target:THREE.Vector3,speed:number,damage:number){
  const direction=target.clone().sub(from).normalize();
  const mesh=new THREE.Mesh(new THREE.SphereGeometry(.28,10,8),new THREE.MeshBasicMaterial({color:0xff315b}));
@@ -120,8 +120,8 @@ function spawn(kind:Kind,p:THREE.Vector3,boss=false){
  const core=add(new THREE.SphereGeometry(boss?.58:.42,14,10),new THREE.MeshBasicMaterial({color:0xffbd72}),0,kind==='DRONE'?0:1.05*scale,-.28);
  const hitProxy=new THREE.Mesh(new THREE.SphereGeometry(kind==='TANK'?1.18:kind==='DRONE'?.92:.88,10,8),hitProxyMaterial);hitProxy.position.set(0,kind==='DRONE'?0:.94*scale,0);hitProxy.userData.hitTarget=true;g.add(hitProxy);
  g.position.copy(p);foes.add(g);
- const h=boss?850:kind==='TANK'?210:kind==='DRONE'?55:kind==='SNIPER'?65:kind==='INTERCEPTOR'?140:48;
- enemies.push({root:g,core,hitProxy,kind,hp:h,max:h,speed:kind==='RUNNER'?3.8:kind==='INTERCEPTOR'?5.5:kind==='TANK'?1.5:kind==='DRONE'?2.2:0,cool:Math.random()+1.3,alive:true,boss});
+ const difficulty=1+Math.min(.95,Math.max(0,stage-1)*.065),h=(boss?850:kind==='TANK'?210:kind==='DRONE'?55:kind==='SNIPER'?65:kind==='INTERCEPTOR'?140:48)*difficulty;
+ enemies.push({root:g,core,hitProxy,kind,hp:h,max:h,speed:(kind==='RUNNER'?3.8:kind==='INTERCEPTOR'?5.5:kind==='TANK'?1.5:kind==='DRONE'?2.2:0)*(1+Math.min(.55,Math.max(0,stage-1)*.035)),cool:Math.random()+1.3,alive:true,boss});
  if(boss){$('#bossbar').classList.remove('hidden');$('#bossname').textContent=stage%25===0?'THE COLOSSUS':'THE HUNTER';}
 }
 const arenaLights:THREE.PointLight[]=[];
@@ -160,7 +160,7 @@ function buildArena(){clearEnemyProjectiles();for(const light of arenaLights)sce
  const reactorLight=new THREE.PointLight(0xff642e,16,24);reactorLight.position.set(0,3,-23);scene.add(reactorLight);arenaLights.push(reactorLight);
  position.set(0,1.7,17);velocity.set(0,0,0);yaw=0;pitch=0;camera.position.copy(position);camera.rotation.set(pitch,yaw,0,'YXZ');hp=100;grounded=true;sliding=false;grapple=null;grappleCD=0;wallrun=0;coyote=.12;
  if(mode!=='training'){
-   const count=stage===1?3:stage%5===0?4:stage%3===0?5:4;
+   const count=stage===1?3:stage%5===0?5:stage>=13?7:stage>=9?6:stage%3===0?5:4;
    const types:Kind[]=['RUNNER','RUNNER','SNIPER','DRONE','TANK','INTERCEPTOR'];
    for(let i=0;i<count;i++){
      const xs=[-9,0,9,-14,14,-5,5,0,-18,18,-11,11],zs=[-10,-13,-10,-18,-18,-22,-22,-25,-6,-6,-15,-15];
@@ -172,8 +172,8 @@ function buildArena(){clearEnemyProjectiles();for(const light of arenaLights)sce
  $('#bossbar').classList.toggle('hidden',!enemies.some(e=>e.boss));hud();updateObjective();}
 function updateObjective(){
  const alive=enemies.filter(e=>e.alive).length,total=enemies.length,cleared=total-alive;
- $('#objective-title').textContent=mode==='training'?'MOVEMENT TRAINING':'SECTOR '+String(stage).padStart(2,'0')+' OBJECTIVE';
- $('#objective-copy').textContent=mode==='training'?'Practice movement. No enemies here.':alive===0?'SECTOR CLEAR — NEXT SECTOR INCOMING':cleared+'/'+total+' CLEARED · ELIMINATE ALL '+alive+' REMAINING TO ADVANCE';
+ $('#objective-title').textContent=mode==='training'?'MOVEMENT TRAINING':stage%4===0?'HAZARD SECTOR // OVERLOAD SWEEP':'SECTOR '+String(stage).padStart(2,'0')+' OBJECTIVE';
+ $('#objective-copy').textContent=mode==='training'?'Practice movement. No enemies here.':alive===0?'SECTOR CLEAR — NEXT SECTOR INCOMING':cleared+'/'+total+' CLEARED · '+alive+' HOSTILES REMAINING'+(stage%4===0?' · JUMP THE SWEEP':'')';
 }
 function start(training=false,daily=false){stage=1;score=0;kills=0;hp=100;combo=1;bestCombo=1;comboTime=0;distance=0;ability=100;mag={ARC:12,BREACH:6,RAIL:4};reserve={ARC:72,BREACH:30,RAIL:20};mode=training?'training':'playing';if(!training)save.runs++;buildArena();ui(mode);note(daily?'DAILY CHALLENGE // SECTOR 01':training?'TRAINING // PRACTICE MOVEMENT':'OBJECTIVE // ELIMINATE ALL HOSTILES');updateObjective();}
 function endRun(){save.highestStage=Math.max(save.highestStage,stage);save.highestScore=Math.max(save.highestScore,Math.floor(score));save.kills+=kills;save.distance+=Math.floor(distance);save.longestCombo=Math.max(save.longestCombo,bestCombo);save.highestSpeed=Math.max(save.highestSpeed,bestSpeed);persist();$('#deathcopy').textContent='STAGE '+stage+' // SCORE '+Math.floor(score).toLocaleString()+' // '+kills+' ELIMINATIONS // BEST FLOW x'+bestCombo.toFixed(1)+'. PERSONAL BEST: '+save.highestScore.toLocaleString()+'.';ui('dead');}
@@ -193,7 +193,8 @@ function shoot(){
    const hits=ray.intersectObjects(targets,false);
    const hit=hits[0],end=hit?hit.point:camera.position.clone().addScaledVector(shotDir,ray.far);
    const muzzle=camera.position.clone().addScaledVector(shotDir,.8).add(new THREE.Vector3(.16,-.12,0).applyQuaternion(camera.quaternion));
-   if(i===0){shotGeometry.setFromPoints([muzzle,end]);shotMaterial.color.setHex(weapon==='RAIL'?0x8feaff:weapon==='BREACH'?0xff5a24:0xffd18a);playerShot.visible=true;playerShotLife=weapon==='RAIL'?.12:.075;muzzleFlash.material.color.setHex(weapon==='RAIL'?0x9ceaff:0xffb15e);muzzleFlash.material.opacity=1;muzzleFlash.scale.setScalar(weapon==='BREACH'?1.8:1);muzzleFlash.visible=true;muzzleLife=.055;}
+    addTracer(muzzle,end,weapon==='RAIL'?0x9ceaff:weapon==='BREACH'?0xff7a3b:0xffe0a3,weapon==='RAIL'?.26:.2);
+   if(i===0){shotGeometry.setFromPoints([muzzle,end]);shotMaterial.color.setHex(weapon==='RAIL'?0x8feaff:weapon==='BREACH'?0xff5a24:0xffd18a);playerShot.visible=true;playerShotLife=weapon==='RAIL'?.2:.16;muzzleFlash.material.color.setHex(weapon==='RAIL'?0x9ceaff:0xffb15e);muzzleFlash.material.opacity=1;muzzleFlash.scale.setScalar(weapon==='BREACH'?1.8:1);muzzleFlash.visible=true;muzzleLife=.075;}
    if(hit){
      const target=enemies.find(e=>e.alive&&e.hitProxy===hit.object);
      $('#crosshair').classList.add('hit');$('#crosshair').classList.add('hit-confirm');setTimeout(()=>$('#crosshair').classList.remove('hit','hit-confirm'),110);
