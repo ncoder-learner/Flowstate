@@ -4,7 +4,7 @@ import './style.css';
 type Mode='menu'|'playing'|'paused'|'dead'|'training'|'settings'|'stats';
 type Kind='RUNNER'|'SNIPER'|'TANK'|'DRONE'|'INTERCEPTOR';
 type Weapon='ARC'|'BREACH'|'RAIL';
-type Enemy={root:THREE.Group;core:THREE.Mesh;hitProxy:THREE.Mesh;kind:Kind;hp:number;max:number;speed:number;cool:number;windup:number;alive:boolean;boss:boolean};
+type Enemy={root:THREE.Group;core:THREE.Mesh;hitProxy:THREE.Mesh;healthBar:THREE.Group;healthFill:THREE.Mesh;kind:Kind;hp:number;max:number;speed:number;cool:number;windup:number;alive:boolean;boss:boolean};
 type EnemyProjectile={mesh:THREE.Mesh;velocity:THREE.Vector3;damage:number;life:number};
 type Pickup={root:THREE.Group;life:number;phase:number};
 type LaunchPad={x:number;z:number;cooldown:number};
@@ -65,6 +65,7 @@ let yaw=0,pitch=0,grounded=false,airJumps=1,sliding=false,slideTime=0,slideCoold
 const ray=new THREE.Raycaster(),clock=new THREE.Clock();
 const visualEffects:{object:THREE.Object3D;life:number}[]=[];
 const hitProxyMaterial=new THREE.MeshBasicMaterial({transparent:true,opacity:0,colorWrite:false,depthWrite:false});
+function disposeEnemy(e:Enemy){const geometries=new Set<THREE.BufferGeometry>(),materials=new Set<THREE.Material>();e.root.traverse(o=>{if(o instanceof THREE.Mesh){if(o.geometry!==box)geometries.add(o.geometry);const list=Array.isArray(o.material)?o.material:[o.material];for(const m of list)if(m!==hitProxyMaterial)materials.add(m);}});geometries.forEach(g=>g.dispose());materials.forEach(m=>m.dispose());}
 const shotGeometry=new THREE.BufferGeometry();shotGeometry.setAttribute('position',new THREE.BufferAttribute(new Float32Array(6),3));
 const shotMaterial=new THREE.LineBasicMaterial({color:0xffd18a,transparent:true,opacity:1,depthTest:false});
 const playerShot=new THREE.Line(shotGeometry,shotMaterial);playerShot.renderOrder=30;playerShot.visible=false;scene.add(playerShot);
@@ -168,9 +169,10 @@ function spawn(kind:Kind,p:THREE.Vector3,boss=false){
  }
  const core=add(new THREE.SphereGeometry(.24,14,10),new THREE.MeshBasicMaterial({color:0xffe08a}),0,kind==='DRONE'?0:1.58*scale,kind==='DRONE'?-1.58:-1.18*scale);core.scale.setScalar(kind==='DRONE'?1.12:1);const weakpointRing=add(new THREE.TorusGeometry(.34,.045,6,18),new THREE.MeshBasicMaterial({color:0xff7138}),0,kind==='DRONE'?0:1.58*scale,kind==='DRONE'?-1.58:-1.18*scale);weakpointRing.scale.setScalar(kind==='DRONE'?1.12:1);
  const hitProxy=new THREE.Mesh(new THREE.SphereGeometry(kind==='TANK'?1.28:kind==='DRONE'?1.3:kind==='INTERCEPTOR'?1.08:.98,12,10),hitProxyMaterial);hitProxy.position.set(0,kind==='DRONE'?0:.94*scale,0);hitProxy.userData.hitTarget=true;g.add(hitProxy);
+ const healthBar=new THREE.Group();healthBar.position.set(0,2.35*scale,0);healthBar.visible=boss;const healthBack=new THREE.Mesh(new THREE.PlaneGeometry(1.18,.09),new THREE.MeshBasicMaterial({color:0x101820,transparent:true,opacity:.9,depthWrite:false}));const healthFill=new THREE.Mesh(new THREE.PlaneGeometry(1.1,.055),new THREE.MeshBasicMaterial({color:0xff7138,depthWrite:false}));healthFill.position.z=.01;healthBar.add(healthBack,healthFill);g.add(healthBar);
  g.position.copy(p);foes.add(g);
  const difficulty=1+Math.min(.95,Math.max(0,stage-1)*.065),h=(boss?850:kind==='TANK'?210:kind==='DRONE'?42:kind==='SNIPER'?65:kind==='INTERCEPTOR'?140:48)*difficulty;
- enemies.push({root:g,core,hitProxy,kind,hp:h,max:h,speed:(kind==='RUNNER'?3.8:kind==='INTERCEPTOR'?5.5:kind==='TANK'?1.5:kind==='DRONE'?2.2:0)*(1+Math.min(.55,Math.max(0,stage-1)*.035)),cool:Math.random()+1.3,windup:0,alive:true,boss});
+ enemies.push({root:g,core,hitProxy,healthBar,healthFill,kind,hp:h,max:h,speed:(kind==='RUNNER'?3.8:kind==='INTERCEPTOR'?5.5:kind==='TANK'?1.5:kind==='DRONE'?2.2:0)*(1+Math.min(.55,Math.max(0,stage-1)*.035)),cool:Math.random()+1.3,windup:0,alive:true,boss});
  if(boss){$('#bossbar').classList.remove('hidden');$('#bossname').textContent=stage%25===0?'THE COLOSSUS':stage%10===0?'THE WRAITH':'THE HUNTER';}
 }
 const arenaLights:THREE.PointLight[]=[];
@@ -235,7 +237,7 @@ function start(training=false,daily=false){dailyRun=daily&&!training;dailyModifi
 function endRun(){save.highestStage=Math.max(save.highestStage,stage);save.highestScore=Math.max(save.highestScore,Math.floor(score));save.kills+=kills;save.distance+=Math.floor(distance);save.longestCombo=Math.max(save.longestCombo,bestCombo);save.highestSpeed=Math.max(save.highestSpeed,bestSpeed);persist();$('#deathcopy').textContent='STAGE '+stage+' // SCORE '+Math.floor(score).toLocaleString()+' // '+kills+' ELIMINATIONS // BEST FLOW x'+bestCombo.toFixed(1)+'. PERSONAL BEST: '+save.highestScore.toLocaleString()+'.';ui('dead');}
 function nextStage(){stage++;score+=stage*100;hp=Math.min(100,hp+18);ability=Math.min(100,ability+25);mag.ARC=Math.min(12,mag.ARC+5);mag.BREACH=Math.min(6,mag.BREACH+2);mag.RAIL=Math.min(4,mag.RAIL+1);reserve.ARC=Math.min(120,reserve.ARC+14);reserve.BREACH=Math.min(48,reserve.BREACH+7);reserve.RAIL=Math.min(32,reserve.RAIL+5);buildArena();note('SECTOR '+String(stage).padStart(2,'0')+' // INCOMING');updateObjective();}
 function hurt(n:number){if(mode!=='playing'||hurtIFrames>0)return;if(dailyRun&&dailyModifier===1)n*=1.35;hurtIFrames=.72;hp-=n;$('#hud').classList.add('taking-damage');setTimeout(()=>$('#hud').classList.remove('taking-damage'),180);sound(65,.13,'sawtooth',.06);if(hp<=0)endRun();hud();}
-function damage(e:Enemy,n:number,critical=false){e.hp-=n;e.root.scale.setScalar(1.1);const bonus=Math.floor(velocity.length()*1.8)+(grounded?0:35)+(sliding?25:0)+(grapple?50:0);score+=Math.round(n*.35+bonus)*combo*(dailyRun&&dailyModifier===1?1.4:1);if(e.hp<=0){e.alive=false;if(dailyRun&&dailyModifier===2){mag[weapon]=Math.min(weaponData[weapon].size,mag[weapon]+1);reserve[weapon]=Math.min(weapon==='ARC'?120:weapon==='BREACH'?48:32,reserve[weapon]+1);}if((kills+1)%3===0)spawnPickup(e.root.position);addDeathBurst(e.root.position,({RUNNER:0xff7048,SNIPER:0x72c9ff,TANK:0xffb36b,DRONE:0xc29aff,INTERCEPTOR:0xffa04a} as Record<Kind,number>)[e.kind]);foes.remove(e.root);kills++;combo=Math.min(8,combo+.35);comboTime=4.5;bestCombo=Math.max(bestCombo,combo);score+=Math.round((100+bonus)*combo)*(dailyRun&&dailyModifier===1?1.4:1);note((critical?'CORE BREAK // ':'')+(velocity.length()>13?'KINETIC ELIMINATION':!grounded?'AIRBORNE ELIMINATION':'HOSTILE NEUTRALIZED')+'  +'+Math.round((100+bonus)*combo));sound(520,.13,'triangle',.05);if(e.boss){save.bossesDefeated++;persist();$('#bossbar').classList.add('hidden');}}else{if(critical){note('CRITICAL // CORE HIT · 2.5X DAMAGE');sound(880,.07,'triangle',.045);}else sound(160,.035,'square',.02);}hud();}
+function damage(e:Enemy,n:number,critical=false){e.hp-=n;e.healthBar.visible=true;const ratio=clamp(e.hp/e.max,0,1);e.healthFill.scale.x=ratio;e.healthFill.position.x=-(1-ratio)*.55;e.root.scale.setScalar(1.1);const bonus=Math.floor(velocity.length()*1.8)+(grounded?0:35)+(sliding?25:0)+(grapple?50:0);score+=Math.round(n*.35+bonus)*combo*(dailyRun&&dailyModifier===1?1.4:1);if(e.hp<=0){e.alive=false;if(dailyRun&&dailyModifier===2){mag[weapon]=Math.min(weaponData[weapon].size,mag[weapon]+1);reserve[weapon]=Math.min(weapon==='ARC'?120:weapon==='BREACH'?48:32,reserve[weapon]+1);}if((kills+1)%3===0)spawnPickup(e.root.position);addDeathBurst(e.root.position,({RUNNER:0xff7048,SNIPER:0x72c9ff,TANK:0xffb36b,DRONE:0xc29aff,INTERCEPTOR:0xffa04a} as Record<Kind,number>)[e.kind]);foes.remove(e.root);disposeEnemy(e);kills++;combo=Math.min(8,combo+.35);comboTime=4.5;bestCombo=Math.max(bestCombo,combo);score+=Math.round((100+bonus)*combo)*(dailyRun&&dailyModifier===1?1.4:1);note((critical?'CORE BREAK // ':'')+(velocity.length()>13?'KINETIC ELIMINATION':!grounded?'AIRBORNE ELIMINATION':'HOSTILE NEUTRALIZED')+'  +'+Math.round((100+bonus)*combo));sound(520,.13,'triangle',.05);if(e.boss){save.bossesDefeated++;persist();$('#bossbar').classList.add('hidden');}}else{if(critical){note('CRITICAL // CORE HIT · 2.5X DAMAGE');sound(880,.07,'triangle',.045);}else sound(160,.035,'square',.02);}hud();}
 function shoot(){
  if(fireCD>0||reloadTime>0)return;
  if(mag[weapon]<=0){note('MAG EMPTY // PRESS R TO RELOAD');$('#ammo').classList.add('ammo-low');reload();return;}
@@ -280,7 +282,7 @@ function updateEnemies(dt:number){
      if(e.windup>0){e.windup-=dt;if(e.windup<=0){const from=p.clone().add(new THREE.Vector3(0,1.5,0));launchEnemyProjectile(from,position.clone(),29,6);note('SNIPER // ROUND FIRED');}}
    }
    if(e.boss&&e.cool<0){const from=p.clone().add(new THREE.Vector3(0,1,0)),aim=position.clone();launchEnemyProjectile(from,aim,11,7);const side=new THREE.Vector3(-(aim.z-p.z),0,aim.x-p.x).normalize();launchEnemyProjectile(from,aim.clone().addScaledVector(side,3.2),10,5);launchEnemyProjectile(from,aim.clone().addScaledVector(side,-3.2),10,5);addTracer(from,aim,0xff315b,.55);note('BOSS // TRI-BURST — BREAK THE PATTERN');e.cool=4.6;}
-   e.root.lookAt(position.x,p.y+.5,position.z);
+   e.root.lookAt(position.x,p.y+.5,position.z);if(e.healthBar.visible)e.healthBar.lookAt(camera.position);
  }
 }
 function collides(p:THREE.Vector3){const r=.34,b=new THREE.Box3(new THREE.Vector3(p.x-r,p.y-1.66,p.z-r),new THREE.Vector3(p.x+r,p.y,p.z+r));return colliders.some(c=>c.intersectsBox(b));}
