@@ -34,3 +34,20 @@ kbd{display:inline-block;min-width:22px;padding:3px 5px;margin-right:5px;text-al
 
 /* Combat readability pass */
 #ammo{display:inline-block;min-width:190px;padding:6px 9px;margin-top:5px;border:1px solid rgba(180,200,215,.22);background:rgba(7,12,17,.72);letter-spacing:.08em;transition:color .15s,border-color .15s}#ammo.ammo-low{color:#ff755d;border-color:rgba(255,75,60,.65);animation:ammoPulse .9s ease-in-out infinite alternate}#ammo.reloading{color:#8feaff;border-color:rgba(90,190,255,.65)}@keyframes ammoPulse{from{opacity:1}to{opacity:.55}}#crosshair.hit-confirm:before,#crosshair.hit-confirm:after{background:#a8ffb0;box-shadow:0 0 10px #72ff8b}.weapon{min-width:220px}
+
+
+/* Autonomous polish: clearer hierarchy, focus states, and arena telemetry */
+:root{--flow-orange:#ff7138;--flow-cyan:#78dfff;--flow-panel:rgba(8,13,19,.82)}
+button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--flow-cyan);outline-offset:3px}
+.menu button{position:relative;overflow:hidden;min-height:46px}
+.menu button:before{content:"";position:absolute;inset:0 auto 0 0;width:2px;background:var(--flow-orange);opacity:.45;transition:width .18s,opacity .18s}
+.menu button:hover:before{width:100%;opacity:.12}
+.menu button.primary:before{display:none}
+.panel{padding:clamp(18px,3vw,30px);border:1px solid rgba(134,166,190,.22);border-left:2px solid var(--flow-orange);background:linear-gradient(135deg,rgba(12,19,27,.94),rgba(7,10,15,.84));box-shadow:0 24px 80px rgba(0,0,0,.38);backdrop-filter:blur(14px)}
+.objective{border-color:rgba(120,180,210,.28);background:var(--flow-panel);box-shadow:0 10px 36px rgba(0,0,0,.38),0 0 24px rgba(255,113,56,.07)}
+#ammo{font-variant-numeric:tabular-nums}
+.health{font-variant-numeric:tabular-nums;text-shadow:0 0 18px rgba(255,113,56,.15)}
+.hud-value,.speed,.weapon,.stat b{font-variant-numeric:tabular-nums}
+.notice{padding:9px 14px;border:1px solid rgba(255,113,56,.3);background:rgba(7,12,17,.8);box-shadow:0 5px 24px rgba(0,0,0,.35);backdrop-filter:blur(8px);white-space:nowrap}
+@media(max-width:650px){.control-guide{grid-template-columns:repeat(2,minmax(0,max-content));font-size:9px}.control-guide span{white-space:nowrap}.menu-intro{margin-top:-8px}.screen{overflow-y:auto;justify-content:center}.foot{max-width:calc(100vw - 48px);line-height:1.5}.objective{max-width:calc(100vw - 32px);min-width:0;width:max-content}.hud-bottom .health{font-size:29px}.weapon{min-width:0;font-size:22px}.weapon small{font-size:9px}#ammo{min-width:0}}
+@media(prefers-reduced-motion:reduce){*,*:before,*:after{scroll-behavior:auto!important;animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}}
