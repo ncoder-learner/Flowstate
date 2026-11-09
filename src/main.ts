@@ -266,8 +266,9 @@ function updateEnemies(dt:number){
      if(e.cool<0&&e.windup<=0&&dist<28){e.windup=.62;e.cool=3.8;const from=p.clone();from.y=p.y;addTracer(from,position.clone(),0xff315b,.62);note('DRONE CHARGING // BREAK LINE OF SIGHT');}
      if(e.windup>0){e.windup-=dt;if(e.windup<=0){const from=p.clone();from.y=p.y;launchEnemyProjectile(from,position.clone(),15,4);note('DRONE // ORB RELEASED');}}
    }else if(['RUNNER','INTERCEPTOR','TANK'].includes(e.kind)){
-     if(dist>1.8)p.addScaledVector(d.normalize(),e.speed*dt*(e.boss?1.35:1));
-     else if(e.cool<0){addTracer(p.clone().add(new THREE.Vector3(0,1,0)),position.clone(),0xff243f,.28);note('CONTACT ATTACK // CREATE DISTANCE');hurt(e.kind==='TANK'?9:6);e.cool=2.0;}
+     if(dist>2.8&&e.windup<=0)p.addScaledVector(d.normalize(),e.speed*dt*(e.boss?1.35:1));
+     if(dist<=2.8&&e.cool<0&&e.windup<=0){e.windup=e.kind==='TANK'?1.0:e.kind==='INTERCEPTOR'?.34:.52;e.cool=e.kind==='TANK'?3.1:2.45;addTracer(p.clone().add(new THREE.Vector3(0,1,0)),position.clone(),e.kind==='TANK'?0xff8b3d:0xff315b,e.windup);note(e.kind+' // ATTACK WINDUP — MOVE');}
+     if(e.windup>0){e.windup-=dt;if(e.windup<=0){const toward=position.clone().sub(p),gap=toward.length();if(gap<3.6){addTracer(p.clone().add(new THREE.Vector3(0,1,0)),position.clone(),0xff243f,.22);hurt(e.kind==='TANK'?12:e.kind==='INTERCEPTOR'?8:6);note(e.kind+' // STRIKE');}else{p.addScaledVector(toward.normalize(),e.kind==='TANK'?2.2:4.2);note(e.kind+' // LUNGE MISSED');}}}
    }else if(e.kind==='SNIPER'&&e.cool<0&&dist<35){
      const from=p.clone().add(new THREE.Vector3(0,1.5,0));addTracer(from,position.clone(),0xff315b,.42);launchEnemyProjectile(from,position.clone(),29,6);note('SNIPER // BREAK LINE OF SIGHT');e.cool=3.8;
    }
