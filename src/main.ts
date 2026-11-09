@@ -47,7 +47,7 @@ const box=new THREE.BoxGeometry(1,1,1),colliders:THREE.Box3[]=[];
 function block(x:number,y:number,z:number,sx:number,sy:number,sz:number,mat:THREE.Material,solid=true){const m=new THREE.Mesh(box,mat);m.position.set(x,y,z);m.scale.set(sx,sy,sz);world.add(m);if(solid)colliders.push(new THREE.Box3().setFromObject(m));return m;}
 function clear(g:THREE.Group){const disposed=new Set<THREE.Material>();for(const o of [...g.children]){g.remove(o);o.traverse(child=>{if(child instanceof THREE.Mesh){if(child.geometry!==box)child.geometry.dispose();const mats=Array.isArray(child.material)?child.material:[child.material];for(const mat of mats){if(!([floorMat,wallMat,darkMat,orangeMat,blueMat,gunDark,gunEdge,gunAccent,gunBlue,hitProxyMaterial] as THREE.Material[]).includes(mat)&&!disposed.has(mat)){mat.dispose();disposed.add(mat);}}}});}}
 let mode:Mode='menu',stage=1,score=0,kills=0,hp=100,combo=1,bestCombo=1,comboTime=0,distance=0,bestSpeed=0,hurtIFrames=0;
-let weapon:Weapon='ARC',mag:Record<Weapon,number>={ARC:12,BREACH:6,RAIL:4},reserve:Record<Weapon,number>={ARC:72,BREACH:30,RAIL:20};
+let weapon:Weapon='ARC',reloadWeapon:Weapon|null=null,mag:Record<Weapon,number>={ARC:12,BREACH:6,RAIL:4},reserve:Record<Weapon,number>={ARC:72,BREACH:30,RAIL:20};
 const weaponData:Record<Weapon,{name:string;damage:number;rate:number;reload:number;spread:number;size:number}>={ARC:{name:'ARC PISTOL',damage:28,rate:.19,reload:1.1,spread:.006,size:12},BREACH:{name:'BREACH SHOTGUN',damage:17,rate:.72,reload:1.5,spread:.075,size:6},RAIL:{name:'RAIL PRECISION',damage:105,rate:1.05,reload:1.8,spread:0,size:4}};
 let enemies:Enemy[]=[];
 const enemyProjectiles:EnemyProjectile[]=[];
@@ -181,6 +181,11 @@ function buildArena(){clearPickups();hazardTimer=0;hazardHitCooldown=0;hazardCyc
  block(0,1.05,-5,5,2.1,1.4,darkMat);block(0,2.14,-5,4.8,.08,1.25,orangeMat,false);
  block(-6,1.3,-13,3,2.6,3,darkMat);block(6,1.3,-13,3,2.6,3,darkMat);
  block(0,.06,19,7,.12,7,orangeMat,false);block(0,5,-25,10,.5,.7,blueMat,false);
+ // Stage layouts rotate between distinct combat geometries while preserving the same arena bounds.
+ const layout=stage%3;
+ if(layout===1){for(const x of [-8,8])for(const z of [-7,7]){block(x,1.35,z,2.2,2.7,2.2,darkMat);block(x,2.74,z,2.05,.08,2.05,orangeMat,false);}block(0,3.25,-16,7,.45,2.2,darkMat);block(0,3.5,-16,6.7,.08,1.9,blueMat,false);}
+ else if(layout===2){for(const x of [-12,-4,4,12]){block(x,1.8,-9,2.8,3.6,2.8,darkMat);block(x,3.66,-9,2.65,.08,2.65,x<0?blueMat:orangeMat,false);}block(0,1.15,2,8,2.3,2,darkMat);block(0,2.34,2,7.7,.08,1.8,orangeMat,false);}
+ else{for(const z of [-15,-5,5,15]){block(-8,1.1,z,3.2,2.2,1.2,darkMat);block(8,1.1,z,3.2,2.2,1.2,darkMat);}block(0,4.1,-10,10,.5,1.1,darkMat);block(0,4.37,-10,9.7,.08,.9,blueMat,false);}
  // Industrial arena dressing: illuminated pylons, overhead trusses, and lane markers.
  for(const x of [-23,-17,17,23])for(const z of [-22,0,20]){
    const shaft=new THREE.Mesh(new THREE.CylinderGeometry(.38,.58,7,8),darkMat);shaft.position.set(x,3.5,z);world.add(shaft);
@@ -216,9 +221,9 @@ function updateObjective(){
  $('#objective-title').textContent=mode==='training'?'MOVEMENT TRAINING':stage%4===0?'HAZARD SECTOR // OVERLOAD SWEEP':'SECTOR '+String(stage).padStart(2,'0')+' OBJECTIVE';
  $('#objective-copy').textContent=mode==='training'?'Practice movement. No enemies here.':alive===0?'SECTOR CLEAR — NEXT SECTOR INCOMING':cleared+'/'+total+' CLEARED · '+alive+' HOSTILES REMAINING'+(stage%4===0?' · JUMP THE SWEEP':'');
 }
-function start(training=false,daily=false){stage=1;score=0;kills=0;hp=100;combo=1;bestCombo=1;comboTime=0;distance=0;ability=100;mag={ARC:12,BREACH:6,RAIL:4};reserve={ARC:72,BREACH:30,RAIL:20};mode=training?'training':'playing';if(!training)save.runs++;buildArena();ui(mode);note(daily?'DAILY CHALLENGE // SECTOR 01':training?'TRAINING // PRACTICE MOVEMENT':'OBJECTIVE // ELIMINATE ALL HOSTILES');updateObjective();}
+function start(training=false,daily=false){stage=1;score=0;kills=0;hp=100;combo=1;bestCombo=1;comboTime=0;distance=0;ability=100;reloadTime=0;reloadWeapon=null;mag={ARC:12,BREACH:6,RAIL:4};reserve={ARC:72,BREACH:30,RAIL:20};mode=training?'training':'playing';if(!training)save.runs++;buildArena();ui(mode);note(daily?'DAILY CHALLENGE // SECTOR 01':training?'TRAINING // PRACTICE MOVEMENT':'OBJECTIVE // ELIMINATE ALL HOSTILES');updateObjective();}
 function endRun(){save.highestStage=Math.max(save.highestStage,stage);save.highestScore=Math.max(save.highestScore,Math.floor(score));save.kills+=kills;save.distance+=Math.floor(distance);save.longestCombo=Math.max(save.longestCombo,bestCombo);save.highestSpeed=Math.max(save.highestSpeed,bestSpeed);persist();$('#deathcopy').textContent='STAGE '+stage+' // SCORE '+Math.floor(score).toLocaleString()+' // '+kills+' ELIMINATIONS // BEST FLOW x'+bestCombo.toFixed(1)+'. PERSONAL BEST: '+save.highestScore.toLocaleString()+'.';ui('dead');}
-function nextStage(){stage++;score+=stage*100;hp=Math.min(100,hp+15);mag.ARC=Math.min(12,mag.ARC+5);mag.BREACH=Math.min(6,mag.BREACH+2);mag.RAIL=Math.min(4,mag.RAIL+1);buildArena();note('SECTOR '+String(stage).padStart(2,'0')+' // INCOMING');updateObjective();}
+function nextStage(){stage++;score+=stage*100;hp=Math.min(100,hp+18);ability=Math.min(100,ability+25);mag.ARC=Math.min(12,mag.ARC+5);mag.BREACH=Math.min(6,mag.BREACH+2);mag.RAIL=Math.min(4,mag.RAIL+1);reserve.ARC=Math.min(120,reserve.ARC+14);reserve.BREACH=Math.min(48,reserve.BREACH+7);reserve.RAIL=Math.min(32,reserve.RAIL+5);buildArena();note('SECTOR '+String(stage).padStart(2,'0')+' // INCOMING');updateObjective();}
 function hurt(n:number){if(mode!=='playing'||hurtIFrames>0)return;hurtIFrames=.72;hp-=n;$('#hud').classList.add('taking-damage');setTimeout(()=>$('#hud').classList.remove('taking-damage'),180);sound(65,.13,'sawtooth',.06);if(hp<=0)endRun();hud();}
 function damage(e:Enemy,n:number){e.hp-=n;e.root.scale.setScalar(1.1);const bonus=Math.floor(velocity.length()*1.8)+(grounded?0:35)+(sliding?25:0)+(grapple?50:0);score+=Math.round(n*.35+bonus)*combo;if(e.hp<=0){e.alive=false;if((kills+1)%3===0)spawnPickup(e.root.position);addDeathBurst(e.root.position,({RUNNER:0xff7048,SNIPER:0x72c9ff,TANK:0xffb36b,DRONE:0xc29aff,INTERCEPTOR:0xffa04a} as Record<Kind,number>)[e.kind]);foes.remove(e.root);kills++;combo=Math.min(8,combo+.35);comboTime=4.5;bestCombo=Math.max(bestCombo,combo);score+=Math.round((100+bonus)*combo);note((velocity.length()>13?'KINETIC ELIMINATION':!grounded?'AIRBORNE ELIMINATION':'HOSTILE NEUTRALIZED')+'  +'+Math.round((100+bonus)*combo));sound(520,.13,'triangle',.05);if(e.boss){save.bossesDefeated++;$('#bossbar').classList.add('hidden');}}else sound(160,.035,'square',.02);hud();}
 function shoot(){
@@ -245,7 +250,7 @@ function shoot(){
  if(weapon==='RAIL')velocity.addScaledVector(dir,-.45);
  hud();
 }
-function reload(){if(reloadTime>0||mag[weapon]===weaponData[weapon].size||reserve[weapon]<=0)return;reloadTime=weaponData[weapon].reload;$('#ammo').classList.remove('ammo-low');$('#ammo').classList.add('reloading');note('RELOADING // '+weaponData[weapon].reload.toFixed(1)+' SEC');}
+function reload(){if(reloadTime>0||mag[weapon]===weaponData[weapon].size||reserve[weapon]<=0)return;reloadWeapon=weapon;reloadTime=weaponData[weapon].reload;$('#ammo').classList.remove('ammo-low');$('#ammo').classList.add('reloading');note('RELOADING '+weaponData[weapon].name+' // '+weaponData[weapon].reload.toFixed(1)+' SEC');}
 function grappleStart(){if(grappleCD>0)return;const d=new THREE.Vector3();camera.getWorldDirection(d);ray.set(camera.position,d);ray.far=38;const hit=ray.intersectObjects(world.children);if(hit.length){grapple=hit[0].point.clone();grappleCD=2;note('TETHER ACQUIRED');sound(680,.13,'sine',.045);}else note('NO GRAPPLE ANCHOR');}
 function updateEnemies(dt:number){
  for(const e of enemies){
@@ -264,7 +269,7 @@ function updateEnemies(dt:number){
    }else if(e.kind==='SNIPER'&&e.cool<0&&dist<35){
      const from=p.clone().add(new THREE.Vector3(0,1.5,0));addTracer(from,position.clone(),0xff315b,.42);launchEnemyProjectile(from,position.clone(),29,6);note('SNIPER // BREAK LINE OF SIGHT');e.cool=3.8;
    }
-   if(e.boss&&e.cool<0){const from=p.clone().add(new THREE.Vector3(0,1,0));launchEnemyProjectile(from,position.clone(),11,8);note('BOSS // SHOCKWAVE INBOUND');e.cool=4.2;}
+   if(e.boss&&e.cool<0){const from=p.clone().add(new THREE.Vector3(0,1,0)),aim=position.clone();launchEnemyProjectile(from,aim,11,7);const side=new THREE.Vector3(-(aim.z-p.z),0,aim.x-p.x).normalize();launchEnemyProjectile(from,aim.clone().addScaledVector(side,3.2),10,5);launchEnemyProjectile(from,aim.clone().addScaledVector(side,-3.2),10,5);addTracer(from,aim,0xff315b,.55);note('BOSS // TRI-BURST — BREAK THE PATTERN');e.cool=4.6;}
    e.root.lookAt(position.x,p.y+.5,position.z);
  }
 }
@@ -322,7 +327,7 @@ function movePlayer(dt:number){
  position.x=clamp(position.x,-25.4,25.4);position.z=clamp(position.z,-25.4,25.4);
  if(hurtIFrames>0)hurtIFrames=Math.max(0,hurtIFrames-dt);if(grappleCD>0)grappleCD-=dt;if(jumpBuffer>0)jumpBuffer-=dt;if(fireCD>0)fireCD-=dt;
  if(playerShotLife>0){playerShotLife-=dt;if(playerShotLife<=0)playerShot.visible=false;}if(muzzleLife>0){muzzleLife-=dt;muzzleFlash.material.opacity=Math.max(0,muzzleLife/.055);if(muzzleLife<=0)muzzleFlash.visible=false;}
- if(reloadTime>0){reloadTime-=dt;if(reloadTime<=0){const n=Math.min(weaponData[weapon].size-mag[weapon],reserve[weapon]);mag[weapon]+=n;reserve[weapon]-=n;$('#ammo').classList.remove('reloading','ammo-low');hud();}}
+ if(reloadTime>0){reloadTime-=dt;if(reloadTime<=0&&reloadWeapon){const w=reloadWeapon,n=Math.min(weaponData[w].size-mag[w],reserve[w]);mag[w]+=n;reserve[w]-=n;reloadWeapon=null;$('#ammo').classList.remove('reloading','ammo-low');hud();}}
  if(overdrive>0)overdrive-=dt;if(ability<100)ability=Math.min(100,ability+dt*8);
  const speed=Math.hypot(velocity.x,velocity.z);walkPhase+=dt*speed*.5;distance+=speed*dt;bestSpeed=Math.max(bestSpeed,speed);
  if(speed>12&&grounded){comboTime=Math.max(comboTime,.3);score+=speed*dt*.3;}if(comboTime>0)comboTime-=dt;else combo=Math.max(1,combo-dt*.22);
