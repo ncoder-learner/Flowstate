@@ -216,7 +216,7 @@ function buildArena(){clearPickups();hazardTimer=0;hazardHitCooldown=0;hazardCyc
  const coreMesh=new THREE.Mesh(new THREE.CylinderGeometry(.65,.9,4.8,10),darkMat);coreMesh.position.y=2.4;reactor.add(coreMesh);
  for(const y of [1.1,2.4,3.7]){const ring=new THREE.Mesh(new THREE.TorusGeometry(1.05,.09,8,24),orangeMat);ring.rotation.x=Math.PI/2;ring.position.y=y;reactor.add(ring);}
  const reactorLight=new THREE.PointLight(0xff642e,16,24);reactorLight.position.set(0,3,-23);scene.add(reactorLight);arenaLights.push(reactorLight);
- position.set(0,1.7,17);velocity.set(0,0,0);airJumps=1;pulseCooldown=0;yaw=0;pitch=0;camera.position.copy(position);camera.rotation.set(pitch,yaw,0,'YXZ');hp=100;grounded=true;sliding=false;grapple=null;grappleCD=0;wallrun=0;coyote=.12;
+ position.set(0,1.7,17);velocity.set(0,0,0);airJumps=1;pulseCooldown=0;yaw=0;pitch=0;camera.position.copy(position);camera.rotation.set(pitch,yaw,0,'YXZ');hp=Math.min(maxHp,hp);grounded=true;sliding=false;grapple=null;grappleCD=0;wallrun=0;coyote=.12;
  if(mode!=='training'){
    const count=stage===1?3:stage%5===0?5:stage>=13?7:stage>=9?6:stage%3===0?5:4;
    const types:Kind[]=['RUNNER','RUNNER','SNIPER','DRONE','TANK','INTERCEPTOR'];
