@@ -7,6 +7,7 @@ type Weapon='ARC'|'BREACH'|'RAIL';
 type Enemy={root:THREE.Group;core:THREE.Mesh;hitProxy:THREE.Mesh;kind:Kind;hp:number;max:number;speed:number;cool:number;windup:number;alive:boolean;boss:boolean};
 type EnemyProjectile={mesh:THREE.Mesh;velocity:THREE.Vector3;damage:number;life:number};
 type Pickup={root:THREE.Group;life:number;phase:number};
+type LaunchPad={x:number;z:number;cooldown:number};
 type Save={runs:number;highestStage:number;highestScore:number;kills:number;distance:number;longestCombo:number;highestSpeed:number;bossesDefeated:number};
 const $=(s:string)=>document.querySelector<HTMLElement>(s)!;
 const clamp=(v:number,a:number,b:number)=>Math.max(a,Math.min(b,v));
@@ -56,6 +57,7 @@ const weaponData:Record<Weapon,{name:string;damage:number;rate:number;reload:num
 let enemies:Enemy[]=[];
 const enemyProjectiles:EnemyProjectile[]=[];
 const pickups:Pickup[]=[];
+const launchPads:LaunchPad[]=[];
 let hazardTimer=0,hazardHitCooldown=0,hazardCycle=-1;
 const hazardBeam=new THREE.Mesh(new THREE.BoxGeometry(52,.22,.34),new THREE.MeshBasicMaterial({color:0xff9a42,transparent:true,opacity:.9,depthWrite:false}));hazardBeam.position.y=.58;hazardBeam.visible=false;hazardBeam.renderOrder=25;scene.add(hazardBeam);
 const keys=new Set<string>(),velocity=new THREE.Vector3(),position=new THREE.Vector3(0,1.7,8),forward=new THREE.Vector3(),right=new THREE.Vector3(),move=new THREE.Vector3();
@@ -103,6 +105,7 @@ function updatePickups(dt:number){
  }
 }
 function clearEnemyProjectiles(){for(const p of enemyProjectiles){scene.remove(p.mesh);p.mesh.geometry.dispose();const materials=p.mesh.material; if(Array.isArray(materials))materials.forEach(m=>m.dispose());else materials.dispose();}enemyProjectiles.length=0;}
+function updateLaunchPads(dt:number){for(const pad of launchPads){pad.cooldown=Math.max(0,pad.cooldown-dt);if(pad.cooldown<=0&&grounded&&Math.hypot(position.x-pad.x,position.z-pad.z)<1.35){velocity.y=14.2;velocity.x+=forward.x*3.2;velocity.z+=forward.z*3.2;grounded=false;coyote=0;airJumps=1;pad.cooldown=1.45;sound(440,.16,'sine',.055);note('KINETIC LAUNCH // CHAIN YOUR AIR JUMP');}}}
 function updateHazard(dt:number){
  if(mode!=='playing'||stage%4!==0){hazardBeam.visible=false;return;}
  hazardTimer+=dt;if(hazardHitCooldown>0)hazardHitCooldown=Math.max(0,hazardHitCooldown-dt);
@@ -170,7 +173,7 @@ function spawn(kind:Kind,p:THREE.Vector3,boss=false){
  if(boss){$('#bossbar').classList.remove('hidden');$('#bossname').textContent=stage%25===0?'THE COLOSSUS':'THE HUNTER';}
 }
 const arenaLights:THREE.PointLight[]=[];
-function buildArena(){clearPickups();hazardTimer=0;hazardHitCooldown=0;hazardCycle=-1;hazardBeam.visible=false;clearEnemyProjectiles();for(const light of arenaLights)scene.remove(light);arenaLights.length=0;colliders.length=0;clear(world);clear(foes);enemies=[];
+function buildArena(){clearPickups();hazardTimer=0;hazardHitCooldown=0;hazardCycle=-1;hazardBeam.visible=false;clearEnemyProjectiles();launchPads.length=0;for(const light of arenaLights)scene.remove(light);arenaLights.length=0;colliders.length=0;clear(world);clear(foes);enemies=[];
  // Flat spawn lane, clear sightline, raised side routes and strong landmarks.
  block(0,-.5,0,56,1,56,floorMat);
  block(0,9,-28,56,18,1,wallMat);block(0,9,28,56,18,1,wallMat);
@@ -185,6 +188,8 @@ function buildArena(){clearPickups();hazardTimer=0;hazardHitCooldown=0;hazardCyc
  block(0,1.05,-5,5,2.1,1.4,darkMat);block(0,2.14,-5,4.8,.08,1.25,orangeMat,false);
  block(-6,1.3,-13,3,2.6,3,darkMat);block(6,1.3,-13,3,2.6,3,darkMat);
  block(0,.06,19,7,.12,7,orangeMat,false);block(0,5,-25,10,.5,.7,blueMat,false);
+ // Launch pads reward routing through the outer lanes and feed directly into the air-movement loop.
+ for(const x of [-19,19])for(const z of [-10,10]){const ring=new THREE.Mesh(new THREE.TorusGeometry(1.05,.09,8,24),x<0?blueMat:orangeMat);ring.rotation.x=Math.PI/2;ring.position.set(x,.09,z);world.add(ring);const hub=new THREE.Mesh(new THREE.CylinderGeometry(.55,.7,.12,12),darkMat);hub.position.set(x,.04,z);world.add(hub);launchPads.push({x,z,cooldown:.4});}
  // Stage layouts rotate between distinct combat geometries while preserving the same arena bounds.
  const layout=stage%3;
  if(layout===1){for(const x of [-8,8])for(const z of [-7,7]){block(x,1.35,z,2.2,2.7,2.2,darkMat);block(x,2.74,z,2.05,.08,2.05,orangeMat,false);}block(0,3.25,-16,7,.45,2.2,darkMat);block(0,3.5,-16,6.7,.08,1.9,blueMat,false);}
@@ -355,7 +360,7 @@ function update(dt:number){
  if(playerShotLife>0){playerShotLife-=dt;if(playerShotLife<=0)playerShot.visible=false;}
  if(muzzleLife>0){muzzleLife-=dt;muzzleFlash.material.opacity=Math.max(0,muzzleLife/.055);if(muzzleLife<=0)muzzleFlash.visible=false;}
  if(noticeTime>0){noticeTime-=dt;if(noticeTime<=0)$('#notice').textContent='';}
- movePlayer(dt);updateEnemies(dt);updateEnemyProjectiles(dt);updatePickups(dt);updateHazard(dt);
+ movePlayer(dt);updateLaunchPads(dt);updateEnemies(dt);updateEnemyProjectiles(dt);updatePickups(dt);updateHazard(dt);
  if(mode==='playing'&&enemies.every(e=>!e.alive))nextStage();
 }
 let last=0,acc=0,uiAccumulator=0;
