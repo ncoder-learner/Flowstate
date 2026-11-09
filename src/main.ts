@@ -235,11 +235,10 @@ function shoot(){
  if(mag[weapon]<=0){note('MAG EMPTY // PRESS R TO RELOAD');$('#ammo').classList.add('ammo-low');reload();return;}
  const w=weaponData[weapon];mag[weapon]--;fireCD=w.rate;
  sound(weapon==='RAIL'?110:weapon==='BREACH'?75:220,weapon==='BREACH'?.2:.09,weapon==='RAIL'?'triangle':'sawtooth',weapon==='BREACH'?.09:.045);
- const dir=new THREE.Vector3();camera.getWorldDirection(dir);
+ const dir=new THREE.Vector3();camera.getWorldDirection(dir);const targets=enemies.filter(e=>e.alive).map(e=>e.hitProxy);
  for(let i=0;i<(weapon==='BREACH'?7:1);i++){
    const shotDir=dir.clone().add(new THREE.Vector3((Math.random()-.5)*w.spread,(Math.random()-.5)*w.spread,0).applyQuaternion(camera.quaternion)).normalize();
    ray.set(camera.position,shotDir);ray.far=weapon==='RAIL'?150:65;
-   const targets=enemies.filter(e=>e.alive).map(e=>e.hitProxy);
    const hits=ray.intersectObjects(targets,false);
    const hit=hits[0],end=hit?hit.point:camera.position.clone().addScaledVector(shotDir,ray.far);
    const muzzle=camera.position.clone().addScaledVector(shotDir,.8).add(new THREE.Vector3(.16,-.12,0).applyQuaternion(camera.quaternion));
