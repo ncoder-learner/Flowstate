@@ -51,3 +51,8 @@ button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid 
 .notice{padding:9px 14px;border:1px solid rgba(255,113,56,.3);background:rgba(7,12,17,.8);box-shadow:0 5px 24px rgba(0,0,0,.35);backdrop-filter:blur(8px);white-space:nowrap}
 @media(max-width:650px){.control-guide{grid-template-columns:repeat(2,minmax(0,max-content));font-size:9px}.control-guide span{white-space:nowrap}.menu-intro{margin-top:-8px}.screen{overflow-y:auto;justify-content:center}.foot{max-width:calc(100vw - 48px);line-height:1.5}.objective{max-width:calc(100vw - 32px);min-width:0;width:max-content}.hud-bottom .health{font-size:29px}.weapon{min-width:0;font-size:22px}.weapon small{font-size:9px}#ammo{min-width:0}}
 @media(prefers-reduced-motion:reduce){*,*:before,*:after{scroll-behavior:auto!important;animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}}
+
+
+/* Critical-hit and ability feedback */
+#crosshair.critical-hit:before,#crosshair.critical-hit:after{background:#ffe08a;box-shadow:0 0 5px #ffe08a,0 0 14px #ff7138}
+#ability{font-variant-numeric:tabular-nums;letter-spacing:.07em}
