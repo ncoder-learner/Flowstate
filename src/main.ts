@@ -170,7 +170,7 @@ function spawn(kind:Kind,p:THREE.Vector3,boss=false){
  g.position.copy(p);foes.add(g);
  const difficulty=1+Math.min(.95,Math.max(0,stage-1)*.065),h=(boss?850:kind==='TANK'?210:kind==='DRONE'?42:kind==='SNIPER'?65:kind==='INTERCEPTOR'?140:48)*difficulty;
  enemies.push({root:g,core,hitProxy,kind,hp:h,max:h,speed:(kind==='RUNNER'?3.8:kind==='INTERCEPTOR'?5.5:kind==='TANK'?1.5:kind==='DRONE'?2.2:0)*(1+Math.min(.55,Math.max(0,stage-1)*.035)),cool:Math.random()+1.3,windup:0,alive:true,boss});
- if(boss){$('#bossbar').classList.remove('hidden');$('#bossname').textContent=stage%25===0?'THE COLOSSUS':'THE HUNTER';}
+ if(boss){$('#bossbar').classList.remove('hidden');$('#bossname').textContent=stage%25===0?'THE COLOSSUS':stage%10===0?'THE WRAITH':'THE HUNTER';}
 }
 const arenaLights:THREE.PointLight[]=[];
 function buildArena(){clearPickups();hazardTimer=0;hazardHitCooldown=0;hazardCycle=-1;hazardBeam.visible=false;clearEnemyProjectiles();launchPads.length=0;for(const light of arenaLights)scene.remove(light);arenaLights.length=0;colliders.length=0;clear(world);clear(foes);enemies=[];
@@ -222,7 +222,7 @@ function buildArena(){clearPickups();hazardTimer=0;hazardHitCooldown=0;hazardCyc
      const kind=stage===1?(['RUNNER','RUNNER','SNIPER'][i%3] as Kind):stage%5===0?(i===0?'TANK':i===1?'DRONE':i===2?'SNIPER':'INTERCEPTOR'):stage%3===0?(i<2?'INTERCEPTOR':i===2?'DRONE':i===3?'RUNNER':'SNIPER'):types[(i+stage)%types.length];
      spawn(kind,new THREE.Vector3(xs[i],kind==='DRONE'?3:0,zs[i]));
    }
-   if(stage%5===0)spawn('TANK',new THREE.Vector3(0,0,-21),true);
+   if(stage%5===0)spawn(stage%10===0?'DRONE':'TANK',new THREE.Vector3(0,stage%10===0?3:0,-21),true);
  }
  $('#bossbar').classList.toggle('hidden',!enemies.some(e=>e.boss));hud();updateObjective();}
 function updateObjective(){
