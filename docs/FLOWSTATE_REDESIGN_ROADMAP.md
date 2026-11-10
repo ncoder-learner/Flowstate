@@ -63,7 +63,8 @@ Combat is a pressure system and a movement tool, not the sole objective.
 - [x] Allow kinetic pulse to detonate volatile canisters.
 - [x] Retain grapple anchors and kinetic launch pads as traversal tools.
 - [x] Add optional kinetic barriers that require a committed high-speed impact and reward the player with data.
-- [ ] Add enemy archetypes with distinct movement interactions and more combat/traversal synergies without relying on enemy health inflation.
+- [x] Add the Anchor enemy: a stationary unit that telegraphs a gravity pulse, then pulls the player toward it unless they dash clear.
+- [ ] Add further enemy archetypes and more combat/traversal synergies without relying on enemy health inflation.
 
 ### Phase 6 — Competitive systems (daily foundation implemented)
 - [x] Daily Fractures use a shared deterministic daily seed and daily modifier.
