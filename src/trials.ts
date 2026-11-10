@@ -21,3 +21,13 @@ export function saveTrialTime(seconds:number):number{
  try{localStorage.setItem(STORAGE_KEY,String(best));}catch{}
  return best;
 }
+
+const SPLIT_KEY='flowstate-trial-splits-v1';
+export function loadTrialSplits():number[]{
+ try{const value=JSON.parse(localStorage.getItem(SPLIT_KEY)||'[]');return Array.isArray(value)?value.filter((n:unknown)=>typeof n==='number'&&Number.isFinite(n)&&n>0).slice(0,3):[];}catch{return [];}
+}
+export function saveTrialSplits(splits:number[]):number[]{
+ const previous=loadTrialSplits(),next=[0,1,2].map(i=>{const current=splits[i],best=previous[i];return typeof current==='number'&&current>0?(typeof best==='number'&&best>0?Math.min(best,current):current):(best||0);});
+ try{localStorage.setItem(SPLIT_KEY,JSON.stringify(next));}catch{}
+ return next;
+}
