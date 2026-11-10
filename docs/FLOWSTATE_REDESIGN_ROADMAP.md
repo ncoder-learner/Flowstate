@@ -44,14 +44,16 @@ Combat is a pressure system and a movement tool, not the sole objective.
 - [x] Replay a translucent Echo with interpolation on the same deterministic daily layout.
 - [x] Show live separation from the previous-run Echo as a simple race telemetry readout.
 - [x] Add an Echo Relay: a prior run's ghost must pass through its activation radius to recover bonus data.
-- [ ] Add ghost racing, route splits, and time comparison.
+- [x] Add a live Echo separation readout and previous-run ghost racing in the first time trial.
+- [x] Save three checkpoint splits and compare them against local personal-best splits.
+- [ ] Add multiple ghost routes and more sophisticated route comparison.
 - [ ] Expand Echo interactions to pressure plates, timed doors, and multi-relay puzzles.
 
 ### Phase 4 — Risk and permanent progression (core loop implemented)
 - [x] Bank data only on extraction; lose unbanked data on failure.
 - [x] Add research costs and five permanent modules: Salvage Router, Vector Control, Kinetic Capacitor, Impact Lining, and Echo Amplifier.
 - [x] Add a concise expedition result and next-run flow.
-- [x] Add six persistent achievements for extraction, data recovery, Echo synchronization, daily clears, nonlethal runs, and speed.
+- [x] Add nine persistent achievements covering extraction, data recovery, Echo synchronization, daily clears, nonlethal runs, speed, hidden discovery, and trial medals.
 - [ ] Add region unlocks and deeper research branches.
 
 ### Phase 5 — Movement-combat integration (first pass implemented)
@@ -65,9 +67,10 @@ Combat is a pressure system and a movement tool, not the sole objective.
 - [x] Daily Fractures use a shared deterministic daily seed and daily modifier.
 - [x] Save local daily extraction PBs, best recovered data, and clear count.
 - [x] Add a three-checkpoint industrial time trial with a finish gate.
+- [x] Require the runner to pass through the visible gate frames, not merely cross the checkpoint's Z coordinate.
 - [x] Race against the previous-run Echo when a matching recording exists.
-- [x] Award platinum/gold/silver/bronze/unranked medals and persist a local personal best.
-- [ ] Add multiple trial routes, route splits, and an online leaderboard only after the offline loop is stable.
+- [x] Award platinum/gold/silver/bronze/unranked medals and persist local time and split personal bests.
+- [ ] Add multiple trial routes and an online leaderboard only after the offline loop is stable.
 
 ### Phase 7 — Content expansion (foundation in place)
 - [x] Four industrial rooms with deterministic cover variants, catwalks, grapple anchors, shard routes, and Echo relay.
