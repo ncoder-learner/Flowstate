@@ -376,6 +376,8 @@ function buildExpedition(seed:string){
 }
 function updateExpedition(dt:number){
  if(!expeditionLayout)return;
+ echoElapsed+=dt;echoSampleAccumulator+=dt;while(echoSampleAccumulator>=ECHO_SAMPLE_INTERVAL&&echoSamples.length<ECHO_MAX_SAMPLES){echoSampleAccumulator-=ECHO_SAMPLE_INTERVAL;echoSamples.push({t:echoElapsed,x:position.x,y:position.y,z:position.z,yaw,pitch});}
+ updateEchoPlayback(dt);
  if(extractionPromptCooldown>0)extractionPromptCooldown=Math.max(0,extractionPromptCooldown-dt);
  if(position.z>-9)expeditionRoom=0;else if(position.z>-35)expeditionRoom=1;else if(position.z>-61)expeditionRoom=2;else expeditionRoom=3;
  if(!activatedRooms.has(expeditionRoom)){activatedRooms.add(expeditionRoom);const room=expeditionLayout.rooms[expeditionRoom];for(const hostile of room.hostiles)spawn(hostile.kind,new THREE.Vector3(hostile.x,hostile.kind==='DRONE'?3:0,hostile.z));if(room.hostiles.length)note('SECURITY RESPONSE // '+room.hostiles.length+' HOSTILES DEPLOYED');}
@@ -387,10 +389,9 @@ function updateExpedition(dt:number){
      shardPickups.splice(i,1);note('DATA RECOVERED // +'+pickup.shard.value+' · '+expeditionUnbanked+' CARRIED');sound(720,.12,'sine',.045);
    }
  }
- if(extracting){
-   if(!keys.has('KeyE')){extracting=false;extractionProgress=0;note('EXTRACTION CANCELLED');}
-   else{extractionProgress+=dt;if(extractionProgress>=1.35)completeExtraction();}
- }
+ const beaconDistance=Math.hypot(position.x-expeditionLayout.extraction.x,position.z-expeditionLayout.extraction.z);
+ if(!extracting&&keys.has('KeyE')&&beaconDistance<=3.6){extracting=true;extractionProgress=0;note('HOLD E // SECURING EXTRACTION');}
+ if(extracting){if(!keys.has('KeyE')){extracting=false;extractionProgress=0;note('EXTRACTION CANCELLED');}else{extractionProgress+=dt;if(extractionProgress>=1.35)completeExtraction();}}
 }
 function attemptExtraction(){
  if(!expeditionLayout||mode!=='expedition')return;
@@ -402,9 +403,11 @@ function attemptExtraction(){
 function completeExtraction(){
  if(!expeditionLayout||mode!=='expedition')return;
  extracting=false;
+ if(echoSamples.length<ECHO_MAX_SAMPLES&&(!echoSamples.length||echoSamples[echoSamples.length-1].t<echoElapsed-.025))echoSamples.push({t:echoElapsed,x:position.x,y:position.y,z:position.z,yaw,pitch});
+ const recording=saveEcho({version:1,seed:currentExpeditionSeed,duration:echoElapsed,createdAt:Date.now(),samples:echoSamples});if(recording)previousEcho=recording;
  const recovered=expeditionUnbanked;
  career=updateCareer(career,draft=>{
-   draft.successfulExtractions+=1;draft.dataShards+=recovered;draft.researchPoints+=recovered;
+   draft.successfulExtractions+=1;draft.dataShards+=recovered;draft.researchPoints+=recovered;draft.achievements['first-extraction']=1;if(draft.dataShards>=10)draft.achievements['data-collector']=1;if(echoRelayActivated)draft.achievements['echo-synchronized']=1;if(dailyRun)draft.achievements['daily-fracture']=1;if(kills===0)draft.achievements['ghost-runner']=1;if(draft.bestSpeed>=16)draft.achievements['speed-demon']=1;
    draft.totalSectors=Math.max(draft.totalSectors,expeditionRoom+1);draft.totalKills+=kills;draft.totalDistance+=Math.floor(distance);
    draft.bestScore=Math.max(draft.bestScore,Math.floor(score));draft.bestFlow=Math.max(draft.bestFlow,bestCombo);draft.bestSpeed=Math.max(draft.bestSpeed,bestSpeed);
  });
