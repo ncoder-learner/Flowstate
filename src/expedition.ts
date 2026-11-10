@@ -1,6 +1,6 @@
 export type IndustrialCover = { x: number; z: number; width: number; depth: number; height: number; };
 export type IndustrialShard = { id: string; x: number; z: number; value: number; };
-export type IndustrialHostile = { kind: 'RUNNER' | 'SNIPER' | 'TANK' | 'DRONE' | 'INTERCEPTOR'; x: number; z: number; };
+export type IndustrialHostile = { kind: 'RUNNER' | 'SNIPER' | 'TANK' | 'DRONE' | 'INTERCEPTOR' | 'ANCHOR'; x: number; z: number; };
 export type IndustrialRoom = {
   id: string;
   title: string;
@@ -77,11 +77,11 @@ export function generateIndustrialExpedition(seed: string): IndustrialExpedition
     }
 
     if (index > 0) {
-      const candidates: IndustrialHostile['kind'][] = ['RUNNER', 'RUNNER', 'SNIPER', 'DRONE', 'INTERCEPTOR', 'TANK'];
+      const candidates: IndustrialHostile['kind'][] = ['RUNNER', 'RUNNER', 'SNIPER', 'DRONE', 'INTERCEPTOR', 'TANK', 'ANCHOR'];
       const count = index === 3 ? 4 : 2 + index;
       for (let enemy = 0; enemy < count; enemy++) {
         hostiles.push({
-          kind: candidates[Math.floor(random() * candidates.length)],
+          kind: index===3&&enemy===0?'ANCHOR':candidates[Math.floor(random() * candidates.length)],
           x: (random() < .5 ? -1 : 1) * (4 + random() * 8),
           z: centerZ + (random() - .5) * 9,
         });
