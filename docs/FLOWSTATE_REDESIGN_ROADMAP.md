@@ -18,7 +18,7 @@ Combat is a pressure system and a movement tool, not the sole objective.
 
 ## Implementation phases
 
-### Phase 1 — Foundation (in progress)
+### Phase 1 — Foundation (implemented; local playtest ongoing)
 - [x] Introduce a versioned local career profile.
 - [x] Migrate existing `flowstate-career-v1` records without discarding them.
 - [x] Establish simulation hub, Career Archive, and Research Network screens.
@@ -27,47 +27,57 @@ Combat is a pressure system and a movement tool, not the sole objective.
 - [x] Verify TypeScript/Vite build through GitHub Actions.
 - [ ] Verify browser launch and playtest on the developer machine.
 
-### Phase 2 — First expedition (in progress)
+### Phase 2 — First expedition (implemented; balance pass ongoing)
 - [x] Add deterministic modular industrial room-layout generation.
 - [x] Build four connected industrial room spaces with seeded variants, cover, elevated side routes, and grapple anchors.
 - [x] Add recoverable data shards.
 - [x] Add hold-to-extract interaction and persistent extract/fail results.
 - [x] Remove the between-sector upgrade interruption from the expedition path.
+- [x] Add the persistent extraction compass, directional arrow, distance, and hold-to-extract progress indicator.
+- [x] Replace all-or-nothing horizontal collision with substepped axis resolution, wall sliding, depenetration, and last-safe-ground recovery.
+- [x] Reduce sprint, slide, grapple, and dash speed ceilings and camera FOV amplification.
 - [ ] Playtest and tune enemy pressure, shard placement, and traversal reachability.
 
-### Phase 3 — Echo system
-- Record timestamped player transforms and key movement events.
-- Save a bounded, versioned Echo per expedition.
-- Replay a translucent Echo with stable timing and interpolation.
-- Add ghost racing and route comparison.
-- Only then add deterministic Echo interactions with pressure plates and switches.
+### Phase 3 — Echo system (core loop implemented)
+- [x] Record timestamped player transforms at 10 Hz, bounded to 90 seconds.
+- [x] Save a versioned Echo locally after successful extraction.
+- [x] Replay a translucent Echo with interpolation on the same deterministic daily layout.
+- [x] Add an Echo Relay: a prior run's ghost must pass through its activation radius to recover bonus data.
+- [ ] Add ghost racing, route splits, and time comparison.
+- [ ] Expand Echo interactions to pressure plates, timed doors, and multi-relay puzzles.
 
-### Phase 4 — Risk and permanent progression
-- Bank data only on extraction; lose unbanked data on failure.
-- Add research costs, permanent movement modules, and region unlocks.
-- Add a concise expedition result and next-run flow.
-- Add achievements that reward meaningful movement and discovery milestones.
+### Phase 4 — Risk and permanent progression (core loop implemented)
+- [x] Bank data only on extraction; lose unbanked data on failure.
+- [x] Add research costs and five permanent modules: Salvage Router, Vector Control, Kinetic Capacitor, Impact Lining, and Echo Amplifier.
+- [x] Add a concise expedition result and next-run flow.
+- [x] Add six persistent achievements for extraction, data recovery, Echo synchronization, daily clears, nonlethal runs, and speed.
+- [ ] Add region unlocks and deeper research branches.
 
-### Phase 5 — Movement-combat integration
-- Add momentum-sensitive barriers and launch interactions.
-- Add enemy archetypes with distinct movement interactions.
-- Make explosions, grapple targets, projectiles, and hazards useful to traversal.
-- Avoid enemy health inflation as the primary difficulty lever.
+### Phase 5 — Movement-combat integration (first pass implemented)
+- [x] Add shootable volatile canisters that chain-damage enemies, destroy nearby projectiles, and launch the player when close.
+- [x] Allow kinetic pulse to detonate volatile canisters.
+- [x] Retain grapple anchors and kinetic launch pads as traversal tools.
+- [ ] Add momentum-sensitive barriers and enemy archetypes with distinct movement interactions.
+- [ ] Add more combat/traversal synergies without relying on enemy health inflation.
 
-### Phase 6 — Competitive systems
-- Daily Fractures with shared deterministic layouts and modifiers.
-- Personal bests, route splits, and Echo comparisons.
-- Local leaderboards first; online features only if a free, safe backend is justified.
+### Phase 6 — Competitive systems (daily foundation implemented)
+- [x] Daily Fractures use a shared deterministic daily seed and daily modifier.
+- [x] Save local daily extraction PBs, best recovered data, and clear count.
+- [ ] Add route splits, Echo comparisons, and medal-grade movement trials.
+- [ ] Consider a free online leaderboard only after the offline loop is stable.
 
-### Phase 7 — Content expansion
-- Vertical, Fracture, and Core regions.
-- More room modules, secrets, boss encounters, and experimental abilities.
-- Hand-authored landmark rooms combined through validated procedural routing.
+### Phase 7 — Content expansion (foundation in place)
+- [x] Four industrial rooms with deterministic cover variants, catwalks, grapple anchors, shard routes, and Echo relay.
+- [ ] Add Vertical, Fracture, and Core regions.
+- [ ] Add secrets, boss encounters, and experimental abilities.
+- [ ] Combine hand-authored landmark rooms through validated procedural routing.
 
-### Phase 8 — Release polish
-- Audio identity, lighting, effects, performance budgets, accessibility, settings, and onboarding.
-- Automated layout reachability checks and regression testing.
-- Browser playtesting at representative desktop resolutions.
+### Phase 8 — Release polish (ongoing)
+- [x] Add explicit extraction onboarding and an always-visible directional objective.
+- [x] Add collision recovery and lower the movement speed envelope.
+- [ ] Tune audio identity, lighting, effects, performance budgets, accessibility, and onboarding.
+- [ ] Add automated layout reachability checks and regression testing.
+- [ ] Browser playtest at representative desktop resolutions.
 
 ## Technical constraints
 
