@@ -211,6 +211,23 @@ function buildArena(){clearPickups();hazardTimer=0;hazardHitCooldown=0;hazardCyc
    block(x,8,-7,8,.28,.35,darkMat,false);
    block(x,8.18,-7,7.5,.06,.12,x<0?blueMat:orangeMat,false);
  }
+ // Architectural art pass: a suspended turbine crown, illuminated floor guides, and reinforced wall ribs.
+ const crown=new THREE.Group();crown.position.set(0,10.4,-7);world.add(crown);
+ const crownOuter=new THREE.Mesh(new THREE.TorusGeometry(8.8,.22,10,64),darkMat);crownOuter.rotation.x=Math.PI/2;crown.add(crownOuter);
+ const crownInner=new THREE.Mesh(new THREE.TorusGeometry(7.7,.075,8,64),blueMat);crownInner.rotation.x=Math.PI/2;crownInner.position.y=-.12;crown.add(crownInner);
+ for(let i=0;i<12;i++){const a=i/12*Math.PI*2,spoke=new THREE.Mesh(new THREE.BoxGeometry(.16,.18,1.15),i%2?blueMat:orangeMat);spoke.position.set(Math.cos(a)*8.25,0,Math.sin(a)*8.25);spoke.rotation.y=-a;crown.add(spoke);}
+ for(const side of [-1,1])for(let z=-22;z<=22;z+=5.5){
+   block(side*26.85,3.4,z,.22,6.4,.32,darkMat,false);
+   block(side*26.7,6.2,z,.12,.12,1.9,side<0?blueMat:orangeMat,false);
+ }
+ for(let z=-18;z<=14;z+=8){
+   const stripe=new THREE.Mesh(new THREE.BoxGeometry(1.35,.035,.12),new THREE.MeshBasicMaterial({color:z%16===0?0x48d8ff:0xff9a58}));
+   stripe.position.set(0,.035,z);world.add(stripe);
+   for(const side of [-1,1]){
+     const guide=new THREE.Mesh(new THREE.BoxGeometry(.1,.025,2.2),new THREE.MeshBasicMaterial({color:side<0?0x48d8ff:0xff9a58}));
+     guide.position.set(side*4.1,.035,z);world.add(guide);
+   }
+ }
  // Central reactor landmark with stacked emissive rings.
  const reactor=new THREE.Group();reactor.position.set(0,0,-23);world.add(reactor);
  const coreMesh=new THREE.Mesh(new THREE.CylinderGeometry(.65,.9,4.8,10),darkMat);coreMesh.position.y=2.4;reactor.add(coreMesh);
