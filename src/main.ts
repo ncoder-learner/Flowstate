@@ -471,7 +471,7 @@ const ACHIEVEMENTS=[
  {id:'speed-demon',name:'REDLINE',description:'Reach 16 m/s in an expedition.'},
  {id:'hidden-signal',name:'OFF THE GRID',description:'Find the hidden cache on the final-room catwalk.'},
  {id:'kinetic-breach',name:'BREAK THE SIM',description:'Shatter a kinetic gate with a high-speed impact.'},
- {id:'anchor-breaker',name:'GRAVITY IS OPTIONAL',description:'Destroy an Anchor before its gravity pulse can catch you.'},
+ {id:'anchor-breaker',name:'GRAVITY IS OPTIONAL',description:'Destroy an Anchor unit in an expedition.'},
  {id:'first-trial',name:'TIME ATTACK',description:'Complete your first movement trial.'},
  {id:'gold-trial',name:'GHOST BEATER',description:'Earn gold or platinum in the movement trial.'},
 ] as const;
