@@ -53,6 +53,7 @@ Deploy the generated `dist/` directory to GitHub Pages or Vercel Hobby. No paid 
 - A hidden final-room catwalk cache rewards exploration and unlocks a permanent achievement.
 - Five permanent research modules and six career achievements.
 - Daily Fracture seed, local extraction time PB, best data, and clear count.
+- A three-checkpoint Echo Time Trial with medal grades, a previous-run ghost, and a saved local personal best.
 - Shootable volatile canisters chain-damage nearby enemies, destroy projectiles, and launch the player; kinetic pulse can trigger them.
 - Local-first versioned career profile with migration from the previous `flowstate-career-v1` save.
 - Career Archive, Research Network, and daily challenge records.
@@ -65,9 +66,9 @@ See [docs/FLOWSTATE_REDESIGN_ROADMAP.md](docs/FLOWSTATE_REDESIGN_ROADMAP.md) for
 1. Foundation and persistent career data.
 2. First industrial expedition and extraction.
 3. Echo recording, playback, and synchronized relay interactions (core implemented; racing remains).
-4. Risk/reward economy, five permanent research modules, and six achievements (core implemented; region branches remain).
+4. Risk/reward economy, five permanent research modules, and persistent achievements (core implemented; region branches remain).
 5. Movement-driven combat and environmental interactions (volatile chain reactions implemented; more enemy synergies remain).
-6. Daily Fractures and local personal-best records (implemented; trials and online competition remain).
+6. Daily Fractures and local personal-best records, plus the first Echo Time Trial (implemented; additional routes and online competition remain).
 7. Additional regions, secrets, and experimental abilities.
 8. Performance, accessibility, audio, and release polish.
 
