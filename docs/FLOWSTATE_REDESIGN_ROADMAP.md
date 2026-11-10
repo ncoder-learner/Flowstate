@@ -68,7 +68,8 @@ Combat is a pressure system and a movement tool, not the sole objective.
 ### Phase 6 — Competitive systems (daily foundation implemented)
 - [x] Daily Fractures use a shared deterministic daily seed and daily modifier.
 - [x] Save local daily extraction PBs, best recovered data, and clear count.
-- [x] Add a three-checkpoint industrial time trial with a finish gate.
+- [x] Add a three-checkpoint industrial time trial with visible full-height gates and a finish arch.
+- [x] Keep the live timer and checkpoint objective synchronized during the run.
 - [x] Require the runner to pass through the visible gate frames, not merely cross the checkpoint's Z coordinate.
 - [x] Race against the previous-run Echo when a matching recording exists.
 - [x] Award platinum/gold/silver/bronze/unranked medals and persist local time and split personal bests.
