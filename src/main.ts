@@ -294,6 +294,16 @@ function buildExpedition(seed:string){
      block(cover.x,cover.height/2,cover.z,cover.width,cover.height,cover.depth,darkMat);
      block(cover.x,cover.height+.04,cover.z,cover.width*.94,.08,cover.depth*.94,room.variant===1?blueMat:orangeMat,false);
    }
+   // Side catwalks create alternate elevation routes instead of a single ground-level corridor.
+   const routeSides=room.variant===0?[-1,1]:room.variant===1?[-1]:[1];
+   for(const side of routeSides){
+     block(side*10.5,1.35,room.centerZ+1.8,4.8,.5,7.2,darkMat);
+     block(side*10.5,1.63,room.centerZ+1.8,4.55,.08,6.95,blueMat,false);
+     const anchorRing=new THREE.Mesh(new THREE.TorusGeometry(.82,.09,8,20),orangeMat);
+     anchorRing.position.set(side*10.5,8.4,room.centerZ-4.8);world.add(anchorRing);
+     const anchorCore=new THREE.Mesh(new THREE.SphereGeometry(.16,8,8),blueMat);
+     anchorCore.position.copy(anchorRing.position);world.add(anchorCore);
+   }
    const lamp=new THREE.PointLight(room.variant===1?0x48d8ff:0xff7138,13,25);
    lamp.position.set(room.variant===1?-8:8,7,room.centerZ);world.add(lamp);arenaLights.push(lamp);
    for(const shard of room.shards){
