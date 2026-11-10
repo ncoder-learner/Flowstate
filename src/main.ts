@@ -10,6 +10,7 @@ let expeditionLayout: IndustrialExpedition | null = null;
 let shardPickups: ShardPickup[] = [];
 let expeditionUnbanked = 0;
 let expeditionRoom = 0;
+let activatedRooms = new Set<number>();
 let lastRunWasExpedition = false;
 let lastRunWasDailyExpedition = false;
 let resumeMode: Mode = 'playing';
@@ -277,7 +278,7 @@ function buildExpedition(seed:string){
  clearPickups();clearShardPickups();clearEnemyProjectiles();launchPads.length=0;hazardTimer=0;hazardHitCooldown=0;hazardCycle=-1;hazardBeam.visible=false;
  for(const light of arenaLights)scene.remove(light);arenaLights.length=0;
  colliders.length=0;clear(world);clear(foes);enemies=[];
- expeditionLayout=generateIndustrialExpedition(seed);
+ expeditionLayout=generateIndustrialExpedition(seed);activatedRooms=new Set<number>([0]);
  const layout=expeditionLayout;
  block(0,-.5,-35.5,30,1,112,floorMat);
  block(-15.2,5,-35.5,.8,11,112,wallMat);block(15.2,5,-35.5,.8,11,112,wallMat);
@@ -312,7 +313,6 @@ function buildExpedition(seed:string){
      const ring=new THREE.Mesh(new THREE.TorusGeometry(.58,.045,7,24),new THREE.MeshBasicMaterial({color:0xffa36b}));
      ring.rotation.x=Math.PI/2;root.add(core,ring);scene.add(root);shardPickups.push({root,shard});
    }
-   for(const hostile of room.hostiles)spawn(hostile.kind,new THREE.Vector3(hostile.x,hostile.kind==='DRONE'?3:0,hostile.z));
  }
  for(const x of [-10,10])for(const z of [-20,-46]){
    const ring=new THREE.Mesh(new THREE.TorusGeometry(1.05,.09,8,24),x<0?blueMat:orangeMat);ring.rotation.x=Math.PI/2;ring.position.set(x,.09,z);world.add(ring);
@@ -332,6 +332,7 @@ function updateExpedition(dt:number){
  if(!expeditionLayout)return;
  if(extractionPromptCooldown>0)extractionPromptCooldown=Math.max(0,extractionPromptCooldown-dt);
  if(position.z>-9)expeditionRoom=0;else if(position.z>-35)expeditionRoom=1;else if(position.z>-61)expeditionRoom=2;else expeditionRoom=3;
+ if(!activatedRooms.has(expeditionRoom)){activatedRooms.add(expeditionRoom);const room=expeditionLayout.rooms[expeditionRoom];for(const hostile of room.hostiles)spawn(hostile.kind,new THREE.Vector3(hostile.x,hostile.kind==='DRONE'?3:0,hostile.z));if(room.hostiles.length)note('SECURITY RESPONSE // '+room.hostiles.length+' HOSTILES DEPLOYED');}
  for(let i=shardPickups.length-1;i>=0;i--){
    const pickup=shardPickups[i];pickup.root.rotation.y+=dt*1.2;pickup.root.position.y=1.35+Math.sin(performance.now()*.002+i)*.12;
    if(pickup.root.position.distanceTo(position)<1.8){
