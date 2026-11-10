@@ -45,9 +45,16 @@ Deploy the generated `dist/` directory to GitHub Pages or Vercel Hobby. No paid 
 - Four connected industrial expedition rooms with deterministic room variants, cover, elevated side routes, and grapple anchors.
 - Recoverable data shards that remain unbanked until extraction.
 - Enemy pressure across the expedition route; combat is optional to extraction.
+- Persistent extraction compass with directional arrow, distance in meters, clear hold-E instructions, and extraction progress.
+- Substepped axis-separated wall collision, wall sliding, depenetration, last-safe-ground recovery, and a lower sprint/dash speed envelope.
 - Hold-to-extract interaction. Successful extraction banks data and research points; death loses unbanked data.
+- Versioned local Echo recordings (10 Hz, 90-second cap) replayed as translucent ghost runners on the same daily layout.
+- Echo Relay: a previous run's ghost can synchronize a relay and recover bonus data.
+- Five permanent research modules and six career achievements.
+- Daily Fracture seed, local extraction time PB, best data, and clear count.
+- Shootable volatile canisters chain-damage nearby enemies, destroy projectiles, and launch the player; kinetic pulse can trigger them.
 - Local-first versioned career profile with migration from the previous `flowstate-career-v1` save.
-- Career Archive, Research Network, and deterministic daily expedition seed.
+- Career Archive, Research Network, and daily challenge records.
 - Legacy arena combat code remains available as the basis for training and future combat iteration.
 
 ## Redesign phases
@@ -56,10 +63,10 @@ See [docs/FLOWSTATE_REDESIGN_ROADMAP.md](docs/FLOWSTATE_REDESIGN_ROADMAP.md) for
 
 1. Foundation and persistent career data.
 2. First industrial expedition and extraction.
-3. Echo recording, playback, and ghost racing.
-4. Risk/reward economy and permanent research unlocks.
-5. Movement-driven combat and environmental interactions.
-6. Daily Fractures and competitive records.
+3. Echo recording, playback, and synchronized relay interactions (core implemented; racing remains).
+4. Risk/reward economy, five permanent research modules, and six achievements (core implemented; region branches remain).
+5. Movement-driven combat and environmental interactions (volatile chain reactions implemented; more enemy synergies remain).
+6. Daily Fractures and local personal-best records (implemented; trials and online competition remain).
 7. Additional regions, secrets, and experimental abilities.
 8. Performance, accessibility, audio, and release polish.
 
