@@ -64,8 +64,10 @@ Combat is a pressure system and a movement tool, not the sole objective.
 ### Phase 6 — Competitive systems (daily foundation implemented)
 - [x] Daily Fractures use a shared deterministic daily seed and daily modifier.
 - [x] Save local daily extraction PBs, best recovered data, and clear count.
-- [ ] Add route splits, Echo comparisons, and medal-grade movement trials.
-- [ ] Consider a free online leaderboard only after the offline loop is stable.
+- [x] Add a three-checkpoint industrial time trial with a finish gate.
+- [x] Race against the previous-run Echo when a matching recording exists.
+- [x] Award platinum/gold/silver/bronze/unranked medals and persist a local personal best.
+- [ ] Add multiple trial routes, route splits, and an online leaderboard only after the offline loop is stable.
 
 ### Phase 7 — Content expansion (foundation in place)
 - [x] Four industrial rooms with deterministic cover variants, catwalks, grapple anchors, shard routes, and Echo relay.
