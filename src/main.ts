@@ -351,7 +351,7 @@ function buildExpedition(seed:string){
    const ring=new THREE.Mesh(new THREE.TorusGeometry(1.05,.09,8,24),x<0?blueMat:orangeMat);ring.rotation.x=Math.PI/2;ring.position.set(x,.09,z);world.add(ring);
    const hub=new THREE.Mesh(new THREE.CylinderGeometry(.55,.7,.12,12),darkMat);hub.position.set(x,.04,z);world.add(hub);launchPads.push({x,z,cooldown:.35});
  }
- const relay=new THREE.Group();relay.position.set(echoRelayPosition.x,0,echoRelayPosition.z);const relayBase=new THREE.Mesh(new THREE.CylinderGeometry(1.1,1.35,.18,12),darkMat);relayBase.position.y=.09;relay.add(relayBase);const relayRing=new THREE.Mesh(new THREE.TorusGeometry(.82,.075,8,24),new THREE.MeshBasicMaterial({color:0x8a72ff,emissive:0x302060,emissiveIntensity:1.1}));relayRing.rotation.x=Math.PI/2;relayRing.position.y=.28;relay.add(relayRing);const relayCore=new THREE.Mesh(new THREE.OctahedronGeometry(.3,1),new THREE.MeshStandardMaterial({color:0xa18aff,emissive:0x5b35a0,emissiveIntensity:1.2}));relayCore.position.y=1.1;relay.add(relayCore);world.add(relay);echoRelayGroup=relay;
+ const relay=new THREE.Group();relay.position.set(echoRelayPosition.x,0,echoRelayPosition.z);const relayBase=new THREE.Mesh(new THREE.CylinderGeometry(1.1,1.35,.18,12),darkMat);relayBase.position.y=.09;relay.add(relayBase);const relayRing=new THREE.Mesh(new THREE.TorusGeometry(.82,.075,8,24),new THREE.MeshStandardMaterial({color:0x8a72ff,emissive:0x302060,emissiveIntensity:1.1}));relayRing.rotation.x=Math.PI/2;relayRing.position.y=.28;relay.add(relayRing);const relayCore=new THREE.Mesh(new THREE.OctahedronGeometry(.3,1),new THREE.MeshStandardMaterial({color:0xa18aff,emissive:0x5b35a0,emissiveIntensity:1.2}));relayCore.position.y=1.1;relay.add(relayCore);world.add(relay);echoRelayGroup=relay;
  if(previousEcho&&previousEcho.seed===seed){echoGhost=createEchoGhost();scene.add(echoGhost);}
  const beacon=new THREE.Group();beacon.position.set(layout.extraction.x,.08,layout.extraction.z);
  const base=new THREE.Mesh(new THREE.CylinderGeometry(1.8,2.2,.24,16),darkMat);base.position.y=.12;beacon.add(base);
@@ -552,6 +552,7 @@ function movePlayer(dt:number){
    if(len<2.1){grapple=null;grappleCD=1.15;velocity.y=Math.max(velocity.y,3.2);note('TETHER RELEASE // LAUNCH');}
    else velocity.addScaledVector(d.normalize(),34*dt);
  }
+ const postGrappleSpeed=Math.hypot(velocity.x,velocity.z);if(postGrappleSpeed>max){const scale=max/postGrappleSpeed;velocity.x*=scale;velocity.z*=scale;}
  if(!grounded)velocity.y-=22*dt;
  if(jumpBuffer>0&&(grounded||coyote>0||wallrun>0||airJumps>0)){
    const airJump=!(grounded||coyote>0||wallrun>0);velocity.y=sliding?11.8:airJump?10.4:11.2;if(airJump)airJumps--;else airJumps=1;
@@ -580,7 +581,7 @@ function movePlayer(dt:number){
    else{velocity.x*=.25;velocity.z*=.25;note('WALL RECOVERY // MOMENTUM REDIRECTED');}
    sliding=false;grapple=null;
  }
- if(!collides(position))lastSafePosition.copy(position);
+ if(grounded&&!collides(position))lastSafePosition.copy(position);
  const fallSpeed=Math.abs(velocity.y),y=position.y+velocity.y*dt;let support:THREE.Box3|undefined;
  if(velocity.y<=0){
    const feet=position.y-1.7,nextFeet=y-1.7;
