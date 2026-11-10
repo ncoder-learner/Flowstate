@@ -24,15 +24,16 @@ Combat is a pressure system and a movement tool, not the sole objective.
 - [x] Establish simulation hub, Career Archive, and Research Network screens.
 - [x] Add a deterministic UTC daily seed.
 - [x] Keep the existing movement and combat implementation available as a legacy test mode.
-- [ ] Verify TypeScript/Vite build and browser launch on the developer machine.
+- [x] Verify TypeScript/Vite build through GitHub Actions.
+- [ ] Verify browser launch and playtest on the developer machine.
 
 ### Phase 2 — First expedition (in progress)
 - [x] Add deterministic modular industrial room-layout generation.
-- [ ] Build four connected room spaces and traversal routes.
-- [ ] Add recoverable data shards.
-- [ ] Add extraction interaction and a real extract/fail result.
-- [ ] Replace the full-screen between-sector upgrade interruption in the expedition path.
-- [ ] Tune enemy placement so encounters pressure movement without blocking the route.
+- [x] Build four connected industrial room spaces with seeded variants, cover, elevated side routes, and grapple anchors.
+- [x] Add recoverable data shards.
+- [x] Add hold-to-extract interaction and persistent extract/fail results.
+- [x] Remove the between-sector upgrade interruption from the expedition path.
+- [ ] Playtest and tune enemy pressure, shard placement, and traversal reachability.
 
 ### Phase 3 — Echo system
 - Record timestamped player transforms and key movement events.
