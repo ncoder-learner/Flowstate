@@ -355,7 +355,7 @@ function movePlayer(dt:number){
  }
  let landed=false;
  if(support){position.y=support.max.y+1.7;landed=!grounded;velocity.y=0;grounded=true;coyote=FEEL.coyoteTime;airJumps=1;}
- else if(y<=1.7){position.y=1.7;landed=!grounded;velocity.y=0;grounded=true;coyote=.13;airJumps=1;}
+ else if(y<=1.7){position.y=1.7;landed=!grounded;velocity.y=0;grounded=true;coyote=FEEL.coyoteTime;airJumps=1;}
  else{position.y=y;grounded=false;coyote=Math.max(0,coyote-dt);}
  if(landed&&wasGrounded===false){landingKick=Math.min(.16,fallSpeed*.009);sound(95,.055,'triangle',.018);}
  wasGrounded=grounded;
