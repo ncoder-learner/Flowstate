@@ -1,9 +1,9 @@
 export const FEEL = {
   coyoteTime: 0.10, jumpBufferTime: 0.11, airStrafeAcceleration: 11.5,
   grappleRange: 38, grappleAssistAngle: 0.095,
-  slideJumpMomentum: 1.08, slideJumpCarryTime: 0.2, slideJumpSpeedCap: 19.5,
-  slideCameraTilt: -0.055, speedFovScale: 0.32,
-  windStartSpeed: 11, windFullSpeed: 25, windBasePitch: 75, windPitchRange: 190, windMaxVolume: 0.018,
+  slideJumpMomentum: 1.06, slideJumpCarryTime: 0.18, slideJumpSpeedCap: 15.5,
+  slideCameraTilt: -0.045, speedFovScale: 0.22,
+  windStartSpeed: 12, windFullSpeed: 19, windBasePitch: 75, windPitchRange: 190, windMaxVolume: 0.018,
   killHitstop: 0.025, bossKillSlowMotion: 0.62, sectorClearSlowMotion: 0.42, slowMotionScale: 0.24,
   critPitch: 1040, killPitchBase: 390, killPitchPerFlow: 55,
   hitFlashDuration: 0.12, hitStaggerDuration: 0.075,
@@ -13,6 +13,6 @@ export const FEEL = {
   flowDamagePerTier: 0.04, flowAbilityRegenPerTier: 1.25,
   styleSpeedThreshold: 15, styleKillScore: 90,
   killAbilityRefund: 12, aggressionHealthRefund: 4,
-  airDashAbilityCost: 20, airDashCooldown: 1.35, airDashImpulse: 7.5,
-  airDashVertical: 1.2, airDashCarryTime: 0.18, airDashSpeedCap: 20.5, airDashStyleWindow: 0.8,
+  airDashAbilityCost: 20, airDashCooldown: 1.35, airDashImpulse: 6.5,
+  airDashVertical: 1.0, airDashCarryTime: 0.16, airDashSpeedCap: 15.5, airDashStyleWindow: 0.8,
 } as const;
