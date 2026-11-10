@@ -80,10 +80,11 @@ export function generateIndustrialExpedition(seed: string): IndustrialExpedition
       const candidates: IndustrialHostile['kind'][] = ['RUNNER', 'RUNNER', 'SNIPER', 'DRONE', 'INTERCEPTOR', 'TANK', 'ANCHOR'];
       const count = index === 3 ? 4 : 2 + index;
       for (let enemy = 0; enemy < count; enemy++) {
+        const anchor=index===3&&enemy===0;
         hostiles.push({
-          kind: index===3&&enemy===0?'ANCHOR':candidates[Math.floor(random() * candidates.length)],
-          x: (random() < .5 ? -1 : 1) * (4 + random() * 8),
-          z: centerZ + (random() - .5) * 9,
+          kind: anchor?'ANCHOR':candidates[Math.floor(random() * candidates.length)],
+          x: anchor?0:(random() < .5 ? -1 : 1) * (4 + random() * 8),
+          z: anchor?centerZ:centerZ + (random() - .5) * 9,
         });
       }
     }
