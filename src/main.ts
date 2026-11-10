@@ -3,7 +3,6 @@ import { FEEL } from './config';
 import { formatCareerDistance, getDailySeed, loadCareer, recordLegacyRun, updateCareer, type CareerProfile } from './career';
 import { generateIndustrialExpedition, type IndustrialExpedition, type IndustrialShard } from './expedition';
 import { ECHO_MAX_SAMPLES, ECHO_SAMPLE_INTERVAL, loadEcho, sampleEcho, saveEcho, type EchoRecording, type EchoSample } from './echo';
-import { ECHO_MAX_SAMPLES, ECHO_SAMPLE_INTERVAL, loadEcho, sampleEcho, saveEcho, type EchoRecording, type EchoSample } from './echo';
 import './style.css';
 
 let career: CareerProfile = loadCareer();
@@ -19,16 +18,6 @@ let resumeMode: Mode = 'playing';
 let extractionPromptCooldown = 0;
 let extracting = false;
 let extractionProgress = 0;
-let previousEcho: EchoRecording | null = loadEcho();
-let currentExpeditionSeed = '';
-let echoSamples: EchoSample[] = [];
-let echoElapsed = 0, echoSampleAccumulator = 0, echoPlayTime = 0;
-let echoGhost: THREE.Group | null = null, echoRelayGroup: THREE.Group | null = null;
-let echoRelayActivated = false;
-const echoRelayPosition = new THREE.Vector3(0, 1.7, -48);
-const collisionProbe = new THREE.Vector3();
-const lastSafePosition = new THREE.Vector3(0, 1.7, 8);
-let impactBufferReady = true;
 let previousEcho: EchoRecording | null = loadEcho();
 let currentExpeditionSeed = '';
 let echoSamples: EchoSample[] = [];
@@ -292,7 +281,7 @@ function buildArena(){clearPickups();hazardTimer=0;hazardHitCooldown=0;hazardCyc
    if(stage%5===0)spawn(stage%10===0?'DRONE':'TANK',new THREE.Vector3(0,stage%10===0?3:0,-21),true);
  }
  $('#bossbar').classList.toggle('hidden',!enemies.some(e=>e.boss));hud();updateObjective();}
-function disposeEchoActor(actor:THREE.Group|null){if(!actor)return;scene.remove(actor);actor.traverse(o=>{if(o instanceof THREE.Mesh){o.geometry.dispose();const mats=Array.isArray(o.material)?o.material:[o.material];mats.forEach(m=>m.dispose());}});}
+function disposeEchoActor(actor:THREE.Group|null){if(!actor)return;actor.parent?.remove(actor);actor.traverse(o=>{if(o instanceof THREE.Mesh){o.geometry.dispose();const mats=Array.isArray(o.material)?o.material:[o.material];mats.forEach(m=>m.dispose());}});}
 function createEchoGhost(){
  const ghost=new THREE.Group();const mat=new THREE.MeshBasicMaterial({color:0x65eaff,transparent:true,opacity:.28,depthWrite:false});
  const add=(geometry:THREE.BufferGeometry,x:number,y:number,z:number)=>{const mesh=new THREE.Mesh(geometry,mat);mesh.position.set(x,y,z);ghost.add(mesh);};
@@ -370,7 +359,7 @@ function buildExpedition(seed:string){
  const column=new THREE.Mesh(new THREE.CylinderGeometry(.12,.32,5.8,10),new THREE.MeshBasicMaterial({color:0x48d8ff,transparent:true,opacity:.42}));column.position.y=3;beacon.add(column);
  world.add(beacon);
  const extractionLight=new THREE.PointLight(0x48d8ff,24,20);extractionLight.position.set(0,3,layout.extraction.z);scene.add(extractionLight);arenaLights.push(extractionLight);
- position.set(0,1.7,14);lastSafePosition.copy(position);velocity.set(0,0,0);echoSamples.push({t:0,x:position.x,y:position.y,z:position.z,yaw,pitch});airJumps=1;pulseCooldown=0;yaw=0;pitch=0;camera.position.copy(position);camera.rotation.set(pitch,yaw,0,'YXZ');
+ position.set(0,1.7,14);lastSafePosition.copy(position);velocity.set(0,0,0);airJumps=1;pulseCooldown=0;yaw=0;pitch=0;camera.position.copy(position);camera.rotation.set(pitch,yaw,0,'YXZ');echoSamples.push({t:0,x:position.x,y:position.y,z:position.z,yaw,pitch});
  hp=maxHp;grounded=true;sliding=false;grapple=null;grappleCD=0;wallrun=0;coyote=.12;extracting=false;extractionProgress=0;
  $('#bossbar').classList.add('hidden');hud();updateObjective();
 }
@@ -407,7 +396,7 @@ function completeExtraction(){
  const recording=saveEcho({version:1,seed:currentExpeditionSeed,duration:echoElapsed,createdAt:Date.now(),samples:echoSamples});if(recording)previousEcho=recording;
  const recovered=expeditionUnbanked;
  career=updateCareer(career,draft=>{
-   draft.successfulExtractions+=1;draft.dataShards+=recovered;draft.researchPoints+=recovered;draft.achievements['first-extraction']=1;if(draft.dataShards>=10)draft.achievements['data-collector']=1;if(echoRelayActivated)draft.achievements['echo-synchronized']=1;if(dailyRun)draft.achievements['daily-fracture']=1;if(kills===0)draft.achievements['ghost-runner']=1;if(draft.bestSpeed>=16)draft.achievements['speed-demon']=1;
+   draft.successfulExtractions+=1;draft.dataShards+=recovered;draft.researchPoints+=recovered;draft.achievements['first-extraction']=1;if(draft.dataShards>=10)draft.achievements['data-collector']=1;if(echoRelayActivated)draft.achievements['echo-synchronized']=1;if(dailyRun)draft.achievements['daily-fracture']=1;if(kills===0)draft.achievements['ghost-runner']=1;if(draft.bestSpeed>=16)if(Math.max(draft.bestSpeed,bestSpeed)>=16)draft.achievements['speed-demon']=1;
    draft.totalSectors=Math.max(draft.totalSectors,expeditionRoom+1);draft.totalKills+=kills;draft.totalDistance+=Math.floor(distance);
    draft.bestScore=Math.max(draft.bestScore,Math.floor(score));draft.bestFlow=Math.max(draft.bestFlow,bestCombo);draft.bestSpeed=Math.max(draft.bestSpeed,bestSpeed);
  });
