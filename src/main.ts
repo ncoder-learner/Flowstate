@@ -13,6 +13,8 @@ let expeditionRoom = 0;
 let lastRunWasExpedition = false;
 let resumeMode: Mode = 'playing';
 let extractionPromptCooldown = 0;
+let extracting = false;
+let extractionProgress = 0;
 
 type Mode='menu'|'playing'|'expedition'|'extracted'|'paused'|'dead'|'training'|'settings'|'stats'|'upgrade'|'archive'|'research';
 type Kind='RUNNER'|'SNIPER'|'TANK'|'DRONE'|'INTERCEPTOR';
@@ -266,6 +268,92 @@ function buildArena(){clearPickups();hazardTimer=0;hazardHitCooldown=0;hazardCyc
    if(stage%5===0)spawn(stage%10===0?'DRONE':'TANK',new THREE.Vector3(0,stage%10===0?3:0,-21),true);
  }
  $('#bossbar').classList.toggle('hidden',!enemies.some(e=>e.boss));hud();updateObjective();}
+function clearShardPickups(){
+ for(const pickup of shardPickups){scene.remove(pickup.root);pickup.root.traverse(o=>{if(o instanceof THREE.Mesh){o.geometry.dispose();const mats=Array.isArray(o.material)?o.material:[o.material];mats.forEach(m=>m.dispose());}});}
+ shardPickups.length=0;
+}
+function buildExpedition(seed:string){
+ clearPickups();clearShardPickups();clearEnemyProjectiles();launchPads.length=0;
+ for(const light of arenaLights)scene.remove(light);arenaLights.length=0;
+ colliders.length=0;clear(world);clear(foes);enemies=[];
+ expeditionLayout=generateIndustrialExpedition(seed);
+ const layout=expeditionLayout;
+ block(0,-.5,-35.5,30,1,112,floorMat);
+ block(-15.2,5,-35.5,.8,11,112,wallMat);block(15.2,5,-35.5,.8,11,112,wallMat);
+ block(0,5,20,30,11,.8,wallMat);block(0,5,-91,30,11,.8,wallMat);
+ for(const z of [-9,-35,-61]){
+   block(-10,5,z,10,10,.9,wallMat);block(10,5,z,10,10,.9,wallMat);
+   block(0,10.2,z,10,.35,1.2,darkMat);
+   block(0,10.42,z,8,.07,.12,orangeMat,false);
+ }
+ for(const room of layout.rooms){
+   block(0,10.7,room.centerZ,29,.35,room.depth,darkMat);
+   block(0,10.92,room.centerZ,26,.07,.12,room.variant===1?blueMat:orangeMat,false);
+   for(const cover of room.cover){
+     block(cover.x,cover.height/2,cover.z,cover.width,cover.height,cover.depth,darkMat);
+     block(cover.x,cover.height+.04,cover.z,cover.width*.94,.08,cover.depth*.94,room.variant===1?blueMat:orangeMat,false);
+   }
+   const lamp=new THREE.PointLight(room.variant===1?0x48d8ff:0xff7138,13,25);
+   lamp.position.set(room.variant===1?-8:8,7,room.centerZ);world.add(lamp);arenaLights.push(lamp);
+   for(const shard of room.shards){
+     const root=new THREE.Group();root.position.set(shard.x,1.35,shard.z);
+     const core=new THREE.Mesh(new THREE.OctahedronGeometry(.38,1),new THREE.MeshStandardMaterial({color:0x83f4ff,emissive:0x1686a8,emissiveIntensity:1.8,metalness:.35,roughness:.24}));
+     const ring=new THREE.Mesh(new THREE.TorusGeometry(.58,.045,7,24),new THREE.MeshBasicMaterial({color:0xffa36b}));
+     ring.rotation.x=Math.PI/2;root.add(core,ring);scene.add(root);shardPickups.push({root,shard});
+   }
+   for(const hostile of room.hostiles)spawn(hostile.kind,new THREE.Vector3(hostile.x,hostile.kind==='DRONE'?3:0,hostile.z));
+ }
+ for(const x of [-10,10])for(const z of [-20,-46]){
+   const ring=new THREE.Mesh(new THREE.TorusGeometry(1.05,.09,8,24),x<0?blueMat:orangeMat);ring.rotation.x=Math.PI/2;ring.position.set(x,.09,z);world.add(ring);
+   const hub=new THREE.Mesh(new THREE.CylinderGeometry(.55,.7,.12,12),darkMat);hub.position.set(x,.04,z);world.add(hub);launchPads.push({x,z,cooldown:.35});
+ }
+ const beacon=new THREE.Group();beacon.position.set(layout.extraction.x,.08,layout.extraction.z);
+ const base=new THREE.Mesh(new THREE.CylinderGeometry(1.8,2.2,.24,16),darkMat);base.position.y=.12;beacon.add(base);
+ const ring=new THREE.Mesh(new THREE.TorusGeometry(1.45,.11,8,32),orangeMat);ring.rotation.x=Math.PI/2;ring.position.y=.42;beacon.add(ring);
+ const column=new THREE.Mesh(new THREE.CylinderGeometry(.12,.32,5.8,10),new THREE.MeshBasicMaterial({color:0x48d8ff,transparent:true,opacity:.42}));column.position.y=3;beacon.add(column);
+ world.add(beacon);
+ const extractionLight=new THREE.PointLight(0x48d8ff,24,20);extractionLight.position.set(0,3,layout.extraction.z);scene.add(extractionLight);arenaLights.push(extractionLight);
+ position.set(0,1.7,14);velocity.set(0,0,0);airJumps=1;pulseCooldown=0;yaw=0;pitch=0;camera.position.copy(position);camera.rotation.set(pitch,yaw,0,'YXZ');
+ hp=maxHp;grounded=true;sliding=false;grapple=null;grappleCD=0;wallrun=0;coyote=.12;extracting=false;extractionProgress=0;
+ $('#bossbar').classList.add('hidden');hud();updateObjective();
+}
+function updateExpedition(dt:number){
+ if(!expeditionLayout)return;
+ if(extractionPromptCooldown>0)extractionPromptCooldown=Math.max(0,extractionPromptCooldown-dt);
+ if(position.z>-9)expeditionRoom=0;else if(position.z>-35)expeditionRoom=1;else if(position.z>-61)expeditionRoom=2;else expeditionRoom=3;
+ for(let i=shardPickups.length-1;i>=0;i--){
+   const pickup=shardPickups[i];pickup.root.rotation.y+=dt*1.2;pickup.root.position.y=1.35+Math.sin(performance.now()*.002+i)*.12;
+   if(pickup.root.position.distanceTo(position)<1.8){
+     expeditionUnbanked+=pickup.shard.value;scene.remove(pickup.root);
+     pickup.root.traverse(o=>{if(o instanceof THREE.Mesh){o.geometry.dispose();const mats=Array.isArray(o.material)?o.material:[o.material];mats.forEach(m=>m.dispose());}});
+     shardPickups.splice(i,1);note('DATA RECOVERED // +'+pickup.shard.value+' · '+expeditionUnbanked+' CARRIED');sound(720,.12,'sine',.045);
+   }
+ }
+ if(extracting){
+   if(!keys.has('KeyE')){extracting=false;extractionProgress=0;note('EXTRACTION CANCELLED');}
+   else{extractionProgress+=dt;if(extractionProgress>=1.35)completeExtraction();}
+ }
+}
+function attemptExtraction(){
+ if(!expeditionLayout||mode!=='expedition')return;
+ const distanceToBeacon=Math.hypot(position.x-expeditionLayout.extraction.x,position.z-expeditionLayout.extraction.z);
+ if(distanceToBeacon>3.6){if(extractionPromptCooldown<=0){note('EXTRACTION BEACON // '+Math.ceil(distanceToBeacon)+' M AWAY');extractionPromptCooldown=.8;}return;}
+ if(extracting)return;
+ extracting=true;extractionProgress=0;note('HOLD E // SECURING EXTRACTION');
+}
+function completeExtraction(){
+ if(!expeditionLayout||mode!=='expedition')return;
+ extracting=false;
+ const recovered=expeditionUnbanked;
+ career=updateCareer(career,draft=>{
+   draft.successfulExtractions+=1;draft.dataShards+=recovered;draft.researchPoints+=recovered;
+   draft.totalSectors=Math.max(draft.totalSectors,expeditionRoom+1);draft.totalKills+=kills;draft.totalDistance+=Math.floor(distance);
+   draft.bestScore=Math.max(draft.bestScore,Math.floor(score));draft.bestFlow=Math.max(draft.bestFlow,bestCombo);draft.bestSpeed=Math.max(draft.bestSpeed,bestSpeed);
+ });
+ $('#extract-summary').textContent='You secured '+recovered+' data shards and '+recovered+' research points. Unbanked expedition data is now permanent.';
+ $('#extract-shards').textContent=recovered.toString();$('#extract-rooms').textContent=(expeditionRoom+1)+' / 4';$('#extract-kills').textContent=kills.toString();$('#extract-score').textContent=Math.floor(score).toLocaleString();
+ ui('extracted');sound(920,.3,'sine',.07);
+}
 function updateObjective(){
  const alive=enemies.filter(e=>e.alive).length,total=enemies.length,cleared=total-alive;
  if(mode==='expedition'&&expeditionLayout){const room=expeditionLayout.rooms[expeditionRoom];$('#objective-title').textContent=room.title+' // INDUSTRIAL';const extractionDistance=Math.hypot(position.x-expeditionLayout.extraction.x,position.z-expeditionLayout.extraction.z);$('#objective-copy').textContent=expeditionUnbanked+' DATA CARRIED · '+alive+' HOSTILES ACTIVE · EXTRACTION '+Math.round(extractionDistance)+' M';return;}
