@@ -395,7 +395,7 @@ function updateExpedition(dt:number){
  for(let i=shardPickups.length-1;i>=0;i--){
    const pickup=shardPickups[i];pickup.root.rotation.y+=dt*1.2;pickup.root.position.y=pickup.baseY+Math.sin(performance.now()*.002+i)*.12;
    if(pickup.root.position.distanceTo(position)<1.8){
-     const shardValue=pickup.shard.value+(career.unlockedModules.includes('salvage-router')?1:0);expeditionUnbanked+=shardValue;if(pickup.shard.id==='SECRET-CACHE'){secretCacheFound=true;note('HIDDEN SIGNAL // +'+shardValue+' DATA');}scene.remove(pickup.root);
+     const shardValue=pickup.shard.value+(career.unlockedModules.includes('salvage-router')?1:0);expeditionUnbanked+=shardValue;if(pickup.shard.id==='SECRET-CACHE'){secretCacheFound=true;note('HIDDEN SIGNAL // +'+shardValue+' DATA');}pickup.root.parent?.remove(pickup.root);
      pickup.root.traverse(o=>{if(o instanceof THREE.Mesh){o.geometry.dispose();const mats=Array.isArray(o.material)?o.material:[o.material];mats.forEach(m=>m.dispose());}});
      shardPickups.splice(i,1);note('DATA RECOVERED // +'+shardValue+' · '+expeditionUnbanked+' CARRIED');sound(720,.12,'sine',.045);
    }
