@@ -49,7 +49,8 @@ Deploy the generated `dist/` directory to GitHub Pages or Vercel Hobby. No paid 
 - Substepped axis-separated wall collision, wall sliding, depenetration, last-safe-ground recovery, and a lower sprint/dash speed envelope.
 - Hold-to-extract interaction. Successful extraction banks data and research points; death loses unbanked data.
 - Versioned local Echo recordings (10 Hz, 90-second cap) replayed as translucent ghost runners on the same daily layout.
-- Echo Relay: a previous run's ghost can synchronize a relay and recover bonus data.
+- Echo Relay: a previous run's ghost can synchronize a relay and recover bonus data; live telemetry shows separation from the ghost.
+- A hidden final-room catwalk cache rewards exploration and unlocks a permanent achievement.
 - Five permanent research modules and six career achievements.
 - Daily Fracture seed, local extraction time PB, best data, and clear count.
 - Shootable volatile canisters chain-damage nearby enemies, destroy projectiles, and launch the player; kinetic pulse can trigger them.
