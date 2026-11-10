@@ -45,7 +45,8 @@ Deploy the generated `dist/` directory to GitHub Pages or Vercel Hobby. No paid 
 - Four connected industrial expedition rooms with deterministic room variants, cover, elevated side routes, and grapple anchors.
 - Recoverable data shards that remain unbanked until extraction.
 - Enemy pressure across the expedition route; combat is optional to extraction.
-- Persistent extraction compass with directional arrow, distance in meters, clear hold-E instructions, and extraction progress.
+- Persistent extraction compass with directional arrow, live distance, room progress, hold-E progress, and a first-extraction tutorial explaining that unbanked data is lost on death.
+- Iterative collision depenetration and last-safe-position recovery, with a lower sprint/slide/dash speed envelope.
 - Substepped axis-separated wall collision, wall sliding, depenetration, last-safe-ground recovery, and a lower sprint/dash speed envelope.
 - Hold-to-extract interaction. Successful extraction banks data and research points; death loses unbanked data.
 - Versioned local Echo recordings (10 Hz, 90-second cap) replayed as translucent ghost runners on the same daily layout.
@@ -55,6 +56,7 @@ Deploy the generated `dist/` directory to GitHub Pages or Vercel Hobby. No paid 
 - Daily Fracture seed, local extraction time PB, best data, and clear count.
 - A three-checkpoint Echo Time Trial with medal grades, a previous-run ghost, and a saved local personal best.
 - Shootable volatile canisters chain-damage nearby enemies, destroy projectiles, and launch the player; kinetic pulse can trigger them.
+- Optional kinetic gates on elevated catwalk routes can be shattered with a committed high-speed impact for bonus data.
 - Local-first versioned career profile with migration from the previous `flowstate-career-v1` save.
 - Career Archive, Research Network, and daily challenge records.
 - Legacy arena combat code remains available as the basis for training and future combat iteration.
