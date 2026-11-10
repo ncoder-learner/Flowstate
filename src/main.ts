@@ -656,7 +656,7 @@ function movePlayer(dt:number){
  $('#ability').textContent=(grappleCD>0?'GRAPPLE RECHARGING':grapple?'TETHER ACTIVE':'GRAPPLE READY')+' · Q OVERDRIVE · '+(pulseCooldown>0?'F PULSE '+pulseCooldown.toFixed(1)+'s':'F PULSE READY')+' · '+(airDashCooldown>0?'C DASH '+airDashCooldown.toFixed(1)+'s':ability<FEEL.airDashAbilityCost?'C DASH NEED 20%':'C DASH READY');
 }
 function update(dt:number){
- if(mode!=='playing'&&mode!=='training'&&mode!=='expedition')return;
+ if(mode!=='playing'&&mode!=='training'&&mode!=='expedition'&&mode!=='trial')return;
  for(let i=visualEffects.length-1;i>=0;i--){const fx=visualEffects[i];fx.life-=dt;if(fx.object.userData.effect==='pulse'){const t=1-fx.life/.48;fx.object.scale.setScalar(.5+t*10);((fx.object as THREE.Mesh).material as THREE.MeshBasicMaterial).opacity=Math.max(0,fx.life/.48);}if(fx.object.userData.effect==='death-burst'){const t=1-fx.life/.42;fx.object.scale.setScalar(1+t*1.7);fx.object.rotation.y+=dt*2.4;fx.object.traverse(o=>{if(o instanceof THREE.Line){(o.material as THREE.LineBasicMaterial).opacity=Math.max(0,fx.life/.42);}else if(o instanceof THREE.Mesh){(o.material as THREE.MeshBasicMaterial).opacity=Math.max(0,fx.life/.42);}});}if(fx.life<=0){scene.remove(fx.object);fx.object.traverse(o=>{if(o instanceof THREE.Mesh||o instanceof THREE.Line){o.geometry.dispose();const mats=Array.isArray(o.material)?o.material:[o.material];mats.forEach(m=>m.dispose());}});visualEffects.splice(i,1);}}
  if(playerShotLife>0){playerShotLife-=dt;if(playerShotLife<=0)playerShot.visible=false;}
  if(muzzleLife>0){muzzleLife-=dt;muzzleFlash.material.opacity=Math.max(0,muzzleLife/.055);if(muzzleLife<=0)muzzleFlash.visible=false;}
