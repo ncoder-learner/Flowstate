@@ -71,7 +71,7 @@ const shotGeometry=new THREE.BufferGeometry();shotGeometry.setAttribute('positio
 const shotMaterial=new THREE.LineBasicMaterial({color:0xffd18a,transparent:true,opacity:1,depthTest:false});
 const playerShot=new THREE.Line(shotGeometry,shotMaterial);playerShot.renderOrder=30;playerShot.visible=false;scene.add(playerShot);
 const muzzleFlash=new THREE.Mesh(new THREE.SphereGeometry(.12,8,6),new THREE.MeshBasicMaterial({color:0xffc078,transparent:true,opacity:0,depthWrite:false}));muzzleFlash.visible=false;viewModel.add(muzzleFlash);muzzleFlash.position.set(.12,.02,-.78);
-const speedLineCount=22,speedLinePositions=new Float32Array(speedLineCount*6),speedLineGeometry=new THREE.BufferGeometry();
+const speedLineCount=FEEL.speedLineCount,speedLinePositions=new Float32Array(speedLineCount*6),speedLineGeometry=new THREE.BufferGeometry();
 speedLineGeometry.setAttribute('position',new THREE.BufferAttribute(speedLinePositions,3));
 const speedLineMaterial=new THREE.LineBasicMaterial({color:0xd8f5ff,transparent:true,opacity:0,depthWrite:false});
 const speedLines=new THREE.LineSegments(speedLineGeometry,speedLineMaterial);speedLines.frustumCulled=false;speedLines.renderOrder=40;camera.add(speedLines);
@@ -288,7 +288,7 @@ function updateEnemies(dt:number){
  for(const e of enemies){
    if(!e.alive)continue;
    e.root.scale.setScalar(THREE.MathUtils.damp(e.root.scale.x,1,14,dt));
-   if(e.root.userData.hitFlash>0){e.root.userData.hitFlash=Math.max(0,e.root.userData.hitFlash-dt);const hm=e.root.userData.hitMaterial as THREE.MeshStandardMaterial|undefined;if(hm)hm.emissiveIntensity=e.root.userData.hitFlash>0?2.4:.16;}
+   if(e.root.userData.hitFlash>0){e.root.userData.hitFlash=Math.max(0,e.root.userData.hitFlash-dt);const hm=e.root.userData.hitMaterial as THREE.MeshStandardMaterial|undefined;if(hm)hm.emissiveIntensity=e.root.userData.hitFlash>0?FEEL.hitFlashEmissive:FEEL.hitFlashRestEmissive;}
    if(e.root.userData.stagger>0){e.root.userData.stagger=Math.max(0,e.root.userData.stagger-dt);e.root.lookAt(position.x,e.root.position.y+.5,position.z);continue;}
    const p=e.root.position,d=position.clone().sub(p),dist=d.length();e.cool-=dt;
    if(e.kind==='DRONE'){
@@ -380,8 +380,8 @@ function movePlayer(dt:number){
  viewModel.position.x=THREE.MathUtils.damp(viewModel.position.x,.34+Math.sin(walkPhase)*Math.min(.025,speed*.0008),8,dt);
  if(windOscillator&&windGain&&audioContext){const intensity=clamp((speed-FEEL.windStartSpeed)/(FEEL.windFullSpeed-FEEL.windStartSpeed),0,1);windOscillator.frequency.setTargetAtTime(FEEL.windBasePitch+intensity*FEEL.windPitchRange,audioContext.currentTime,.08);windGain.gain.setTargetAtTime(intensity*FEEL.windMaxVolume,audioContext.currentTime,.1);}
  const lineStrength=clamp((speed-FEEL.speedLineStart)/(FEEL.speedLineFull-FEEL.speedLineStart),0,1),showLines=!reduced&&lineStrength>0;
- speedLines.visible=showLines;speedLineMaterial.opacity=showLines?lineStrength*.42:0;
- if(showLines){const attr=speedLineGeometry.attributes.position as THREE.BufferAttribute;for(let i=0;i<speedLineCount;i++){const a=i/speedLineCount*Math.PI*2,r=.3+(i%3)*.045,len=.08+lineStrength*.34,dx=Math.cos(a),dy=Math.sin(a);attr.setXYZ(i*2,dx*r,dy*r,-1.35);attr.setXYZ(i*2+1,dx*(r+len),dy*(r+len),-1.35);}attr.needsUpdate=true;}
+ speedLines.visible=showLines;speedLineMaterial.opacity=showLines?lineStrength*FEEL.speedLineOpacity:0;
+ if(showLines){const attr=speedLineGeometry.attributes.position as THREE.BufferAttribute;for(let i=0;i<speedLineCount;i++){const a=i/speedLineCount*Math.PI*2,drift=(walkPhase*FEEL.speedLineDrift+i*.137)%1,r=FEEL.speedLineInnerRadius+drift*FEEL.speedLineRadiusStep,len=FEEL.speedLineBaseLength+lineStrength*FEEL.speedLineMaxLength,dx=Math.cos(a),dy=Math.sin(a);attr.setXYZ(i*2,dx*r,dy*r,FEEL.speedLineDepth);attr.setXYZ(i*2+1,dx*(r+len),dy*(r+len),FEEL.speedLineDepth);}attr.needsUpdate=true;}
  $('#speed').textContent=Math.round(speed).toString();$('#combo').textContent='FLOW x'+combo.toFixed(1);
  $('#ability').textContent=(grappleCD>0?'GRAPPLE RECHARGING':grapple?'TETHER ACTIVE':'GRAPPLE READY')+' · Q OVERDRIVE · '+(pulseCooldown>0?'F PULSE '+pulseCooldown.toFixed(1)+'s':'F PULSE READY');
 }
