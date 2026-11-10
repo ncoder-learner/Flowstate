@@ -9,4 +9,10 @@ export const FEEL = {
   hitFlashDuration: 0.12, hitStaggerDuration: 0.075,
   speedLineStart: 17, speedLineFull: 27, speedLineCount: 22, speedLineInnerRadius: 0.3, speedLineRadiusStep: 0.045, speedLineBaseLength: 0.08, speedLineMaxLength: 0.34, speedLineDepth: -1.35, speedLineOpacity: 0.42, speedLineDrift: 0.2,
   hitFlashEmissive: 2.4, hitFlashRestEmissive: 0.16,
+  flowTier2: 2, flowTier3: 3.5, flowTier4: 5.5,
+  flowDamagePerTier: 0.04, flowAbilityRegenPerTier: 1.25,
+  styleSpeedThreshold: 15, styleKillScore: 90,
+  killAbilityRefund: 12, aggressionHealthRefund: 4,
+  airDashAbilityCost: 20, airDashCooldown: 1.35, airDashImpulse: 10.5,
+  airDashVertical: 1.5, airDashCarryTime: 0.22, airDashSpeedCap: 24.5,
 } as const;
