@@ -418,7 +418,7 @@ function movePlayer(dt:number){
  speedLines.visible=showLines;speedLineMaterial.opacity=showLines?lineStrength*FEEL.speedLineOpacity:0;
  if(showLines){const attr=speedLineGeometry.attributes.position as THREE.BufferAttribute;for(let i=0;i<speedLineCount;i++){const a=i/speedLineCount*Math.PI*2,drift=(walkPhase*FEEL.speedLineDrift+i*.137)%1,r=FEEL.speedLineInnerRadius+drift*FEEL.speedLineRadiusStep,len=FEEL.speedLineBaseLength+lineStrength*FEEL.speedLineMaxLength,dx=Math.cos(a),dy=Math.sin(a);attr.setXYZ(i*2,dx*r,dy*r,FEEL.speedLineDepth);attr.setXYZ(i*2+1,dx*(r+len),dy*(r+len),FEEL.speedLineDepth);}attr.needsUpdate=true;}
  $('#speed').textContent=Math.round(speed).toString();$('#combo').textContent='FLOW x'+combo.toFixed(1)+' · '+flowTierName();
- $('#ability').textContent=(grappleCD>0?'GRAPPLE RECHARGING':grapple?'TETHER ACTIVE':'GRAPPLE READY')+' · Q OVERDRIVE · '+(pulseCooldown>0?'F PULSE '+pulseCooldown.toFixed(1)+'s':'F PULSE READY')+' · '+(airDashCooldown>0?'C DASH '+airDashCooldown.toFixed(1)+'s':'C DASH READY');
+ $('#ability').textContent=(grappleCD>0?'GRAPPLE RECHARGING':grapple?'TETHER ACTIVE':'GRAPPLE READY')+' · Q OVERDRIVE · '+(pulseCooldown>0?'F PULSE '+pulseCooldown.toFixed(1)+'s':'F PULSE READY')+' · '+(airDashCooldown>0?'C DASH '+airDashCooldown.toFixed(1)+'s':ability<FEEL.airDashAbilityCost?'C DASH NEED 20%':'C DASH READY');
 }
 function update(dt:number){
  if(mode!=='playing'&&mode!=='training')return;
