@@ -14,5 +14,5 @@ export const FEEL = {
   styleSpeedThreshold: 15, styleKillScore: 90,
   killAbilityRefund: 12, aggressionHealthRefund: 4,
   airDashAbilityCost: 20, airDashCooldown: 1.35, airDashImpulse: 10.5,
-  airDashVertical: 1.5, airDashCarryTime: 0.22, airDashSpeedCap: 24.5,
+  airDashVertical: 1.5, airDashCarryTime: 0.22, airDashSpeedCap: 24.5, airDashStyleWindow: 0.8,
 } as const;
