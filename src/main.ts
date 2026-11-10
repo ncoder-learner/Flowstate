@@ -1,11 +1,11 @@
 import * as THREE from 'three';
 import { FEEL } from './config';
 import { formatCareerDistance, getDailySeed, loadCareer, recordLegacyRun, type CareerProfile } from './career';
-
-let career: CareerProfile = loadCareer();
 import './style.css';
 
-type Mode='menu'|'playing'|'paused'|'dead'|'training'|'settings'|'stats'|'upgrade';
+let career: CareerProfile = loadCareer();
+
+type Mode='menu'|'playing'|'paused'|'dead'|'training'|'settings'|'stats'|'upgrade'|'archive'|'research';
 type Kind='RUNNER'|'SNIPER'|'TANK'|'DRONE'|'INTERCEPTOR';
 type Weapon='ARC'|'BREACH'|'RAIL';
 type Enemy={root:THREE.Group;core:THREE.Mesh;hitProxy:THREE.Mesh;healthBar:THREE.Group;healthFill:THREE.Mesh;kind:Kind;hp:number;max:number;speed:number;cool:number;windup:number;alive:boolean;boss:boolean};
