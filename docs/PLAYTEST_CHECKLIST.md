@@ -33,6 +33,9 @@ npm run dev
 - Find the amber kinetic gate across the optional route.
 - Build sprint speed and hit the gate. It should shatter, award 250 score, and add 3 carried data.
 - Confirm the gate does not block the main corridor.
+- In the final room, locate the Anchor unit. Its orange field should visibly charge before the pulse.
+- Dash or move outside the 15 m field before the pulse completes. If caught, the pull should be noticeable but recoverable.
+- Destroying the Anchor should unlock the GRAVITY IS OPTIONAL achievement.
 
 ## Echo time trial
 
