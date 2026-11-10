@@ -3,6 +3,7 @@ import { FEEL } from './config';
 import { formatCareerDistance, getDailySeed, loadCareer, recordLegacyRun, updateCareer, type CareerProfile } from './career';
 import { generateIndustrialExpedition, type IndustrialExpedition, type IndustrialShard } from './expedition';
 import { ECHO_MAX_SAMPLES, ECHO_SAMPLE_INTERVAL, loadEcho, sampleEcho, saveEcho, type EchoRecording, type EchoSample } from './echo';
+import { ECHO_MAX_SAMPLES, ECHO_SAMPLE_INTERVAL, loadEcho, sampleEcho, saveEcho, type EchoRecording, type EchoSample } from './echo';
 import './style.css';
 
 let career: CareerProfile = loadCareer();
@@ -18,6 +19,16 @@ let resumeMode: Mode = 'playing';
 let extractionPromptCooldown = 0;
 let extracting = false;
 let extractionProgress = 0;
+let previousEcho: EchoRecording | null = loadEcho();
+let currentExpeditionSeed = '';
+let echoSamples: EchoSample[] = [];
+let echoElapsed = 0, echoSampleAccumulator = 0, echoPlayTime = 0;
+let echoGhost: THREE.Group | null = null, echoRelayGroup: THREE.Group | null = null;
+let echoRelayActivated = false;
+const echoRelayPosition = new THREE.Vector3(0, 1.7, -48);
+const collisionProbe = new THREE.Vector3();
+const lastSafePosition = new THREE.Vector3(0, 1.7, 8);
+let impactBufferReady = true;
 let previousEcho: EchoRecording | null = loadEcho();
 let currentExpeditionSeed = '';
 let echoSamples: EchoSample[] = [];
@@ -281,11 +292,33 @@ function buildArena(){clearPickups();hazardTimer=0;hazardHitCooldown=0;hazardCyc
    if(stage%5===0)spawn(stage%10===0?'DRONE':'TANK',new THREE.Vector3(0,stage%10===0?3:0,-21),true);
  }
  $('#bossbar').classList.toggle('hidden',!enemies.some(e=>e.boss));hud();updateObjective();}
+function disposeEchoActor(actor:THREE.Group|null){if(!actor)return;scene.remove(actor);actor.traverse(o=>{if(o instanceof THREE.Mesh){o.geometry.dispose();const mats=Array.isArray(o.material)?o.material:[o.material];mats.forEach(m=>m.dispose());}});}
+function createEchoGhost(){
+ const ghost=new THREE.Group();const mat=new THREE.MeshBasicMaterial({color:0x65eaff,transparent:true,opacity:.28,depthWrite:false});
+ const add=(geometry:THREE.BufferGeometry,x:number,y:number,z:number)=>{const mesh=new THREE.Mesh(geometry,mat);mesh.position.set(x,y,z);ghost.add(mesh);};
+ add(new THREE.BoxGeometry(.42,.78,.24),0,1.05,0);add(new THREE.SphereGeometry(.2,10,8),0,1.62,0);
+ add(new THREE.BoxGeometry(.15,.58,.16),-.32,1.04,0);add(new THREE.BoxGeometry(.15,.58,.16),.32,1.04,0);
+ add(new THREE.BoxGeometry(.18,.68,.2),-.13,.36,0);add(new THREE.BoxGeometry(.18,.68,.2),.13,.36,0);
+ const halo=new THREE.Mesh(new THREE.TorusGeometry(.55,.035,6,20),new THREE.MeshBasicMaterial({color:0x65eaff,transparent:true,opacity:.7,depthWrite:false}));halo.position.y=1.85;ghost.add(halo);
+ ghost.visible=false;return ghost;
+}
+function updateEchoPlayback(dt:number){
+ if(!echoGhost||!previousEcho||previousEcho.seed!==currentExpeditionSeed)return;
+ echoPlayTime+=dt;const sample=sampleEcho(previousEcho,echoPlayTime);
+ if(!sample){echoGhost.visible=false;return;}
+ echoGhost.visible=true;echoGhost.position.set(sample.x,sample.y-1.7,sample.z);echoGhost.rotation.y=sample.yaw;
+ if(!echoRelayActivated&&echoRelayGroup&&echoGhost.position.distanceTo(echoRelayPosition)<3.2){
+   echoRelayActivated=true;const bonus=career.unlockedModules.includes('echo-amplifier')?4:2;expeditionUnbanked+=bonus;
+   echoRelayGroup.traverse(o=>{if(o instanceof THREE.Mesh){const material=o.material;if(Array.isArray(material))material.forEach(m=>{if(m instanceof THREE.MeshStandardMaterial){m.emissive.setHex(0x48d8ff);m.emissiveIntensity=2;}});else if(material instanceof THREE.MeshStandardMaterial){material.emissive.setHex(0x48d8ff);material.emissiveIntensity=2;}}});
+   note('ECHO RELAY SYNCHRONIZED // +'+bonus+' DATA');sound(980,.22,'sine',.06);
+ }
+}
 function clearShardPickups(){
  for(const pickup of shardPickups){scene.remove(pickup.root);pickup.root.traverse(o=>{if(o instanceof THREE.Mesh){o.geometry.dispose();const mats=Array.isArray(o.material)?o.material:[o.material];mats.forEach(m=>m.dispose());}});}
  shardPickups.length=0;
 }
 function buildExpedition(seed:string){
+ currentExpeditionSeed=seed;disposeEchoActor(echoGhost);disposeEchoActor(echoRelayGroup);echoGhost=null;echoRelayGroup=null;echoRelayActivated=false;echoPlayTime=0;echoElapsed=0;echoSampleAccumulator=0;echoSamples=[];
  clearPickups();clearShardPickups();clearEnemyProjectiles();launchPads.length=0;hazardTimer=0;hazardHitCooldown=0;hazardCycle=-1;hazardBeam.visible=false;
  for(const light of arenaLights)scene.remove(light);arenaLights.length=0;
  colliders.length=0;clear(world);clear(foes);enemies=[];
@@ -329,13 +362,15 @@ function buildExpedition(seed:string){
    const ring=new THREE.Mesh(new THREE.TorusGeometry(1.05,.09,8,24),x<0?blueMat:orangeMat);ring.rotation.x=Math.PI/2;ring.position.set(x,.09,z);world.add(ring);
    const hub=new THREE.Mesh(new THREE.CylinderGeometry(.55,.7,.12,12),darkMat);hub.position.set(x,.04,z);world.add(hub);launchPads.push({x,z,cooldown:.35});
  }
+ const relay=new THREE.Group();relay.position.set(echoRelayPosition.x,0,echoRelayPosition.z);const relayBase=new THREE.Mesh(new THREE.CylinderGeometry(1.1,1.35,.18,12),darkMat);relayBase.position.y=.09;relay.add(relayBase);const relayRing=new THREE.Mesh(new THREE.TorusGeometry(.82,.075,8,24),new THREE.MeshBasicMaterial({color:0x8a72ff,emissive:0x302060,emissiveIntensity:1.1}));relayRing.rotation.x=Math.PI/2;relayRing.position.y=.28;relay.add(relayRing);const relayCore=new THREE.Mesh(new THREE.OctahedronGeometry(.3,1),new THREE.MeshStandardMaterial({color:0xa18aff,emissive:0x5b35a0,emissiveIntensity:1.2}));relayCore.position.y=1.1;relay.add(relayCore);world.add(relay);echoRelayGroup=relay;
+ if(previousEcho&&previousEcho.seed===seed){echoGhost=createEchoGhost();scene.add(echoGhost);}
  const beacon=new THREE.Group();beacon.position.set(layout.extraction.x,.08,layout.extraction.z);
  const base=new THREE.Mesh(new THREE.CylinderGeometry(1.8,2.2,.24,16),darkMat);base.position.y=.12;beacon.add(base);
  const ring=new THREE.Mesh(new THREE.TorusGeometry(1.45,.11,8,32),orangeMat);ring.rotation.x=Math.PI/2;ring.position.y=.42;beacon.add(ring);
  const column=new THREE.Mesh(new THREE.CylinderGeometry(.12,.32,5.8,10),new THREE.MeshBasicMaterial({color:0x48d8ff,transparent:true,opacity:.42}));column.position.y=3;beacon.add(column);
  world.add(beacon);
  const extractionLight=new THREE.PointLight(0x48d8ff,24,20);extractionLight.position.set(0,3,layout.extraction.z);scene.add(extractionLight);arenaLights.push(extractionLight);
- position.set(0,1.7,14);lastSafePosition.copy(position);velocity.set(0,0,0);airJumps=1;pulseCooldown=0;yaw=0;pitch=0;camera.position.copy(position);camera.rotation.set(pitch,yaw,0,'YXZ');
+ position.set(0,1.7,14);lastSafePosition.copy(position);velocity.set(0,0,0);echoSamples.push({t:0,x:position.x,y:position.y,z:position.z,yaw,pitch});airJumps=1;pulseCooldown=0;yaw=0;pitch=0;camera.position.copy(position);camera.rotation.set(pitch,yaw,0,'YXZ');
  hp=maxHp;grounded=true;sliding=false;grapple=null;grappleCD=0;wallrun=0;coyote=.12;extracting=false;extractionProgress=0;
  $('#bossbar').classList.add('hidden');hud();updateObjective();
 }
