@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { FEEL } from './config';
 import { formatCareerDistance, getDailySeed, loadCareer, recordLegacyRun, updateCareer, type CareerProfile } from './career';
 import { generateIndustrialExpedition, type IndustrialExpedition, type IndustrialShard } from './expedition';
+import { ECHO_MAX_SAMPLES, ECHO_SAMPLE_INTERVAL, loadEcho, sampleEcho, saveEcho, type EchoRecording, type EchoSample } from './echo';
 import './style.css';
 
 let career: CareerProfile = loadCareer();
@@ -17,6 +18,16 @@ let resumeMode: Mode = 'playing';
 let extractionPromptCooldown = 0;
 let extracting = false;
 let extractionProgress = 0;
+let previousEcho: EchoRecording | null = loadEcho();
+let currentExpeditionSeed = '';
+let echoSamples: EchoSample[] = [];
+let echoElapsed = 0, echoSampleAccumulator = 0, echoPlayTime = 0;
+let echoGhost: THREE.Group | null = null, echoRelayGroup: THREE.Group | null = null;
+let echoRelayActivated = false;
+const echoRelayPosition = new THREE.Vector3(0, 1.7, -48);
+const collisionProbe = new THREE.Vector3();
+const lastSafePosition = new THREE.Vector3(0, 1.7, 8);
+let impactBufferReady = true;
 
 type Mode='menu'|'playing'|'expedition'|'extracted'|'paused'|'dead'|'training'|'settings'|'stats'|'upgrade'|'archive'|'research';
 type Kind='RUNNER'|'SNIPER'|'TANK'|'DRONE'|'INTERCEPTOR';
@@ -258,7 +269,7 @@ function buildArena(){clearPickups();hazardTimer=0;hazardHitCooldown=0;hazardCyc
  const coreMesh=new THREE.Mesh(new THREE.CylinderGeometry(.65,.9,4.8,10),darkMat);coreMesh.position.y=2.4;reactor.add(coreMesh);
  for(const y of [1.1,2.4,3.7]){const ring=new THREE.Mesh(new THREE.TorusGeometry(1.05,.09,8,24),orangeMat);ring.rotation.x=Math.PI/2;ring.position.y=y;reactor.add(ring);}
  const reactorLight=new THREE.PointLight(0xff642e,16,24);reactorLight.position.set(0,3,-23);scene.add(reactorLight);arenaLights.push(reactorLight);
- position.set(0,1.7,17);velocity.set(0,0,0);airJumps=1;pulseCooldown=0;yaw=0;pitch=0;camera.position.copy(position);camera.rotation.set(pitch,yaw,0,'YXZ');hp=Math.min(maxHp,hp);grounded=true;sliding=false;grapple=null;grappleCD=0;wallrun=0;coyote=.12;
+ position.set(0,1.7,17);lastSafePosition.copy(position);velocity.set(0,0,0);airJumps=1;pulseCooldown=0;yaw=0;pitch=0;camera.position.copy(position);camera.rotation.set(pitch,yaw,0,'YXZ');hp=Math.min(maxHp,hp);grounded=true;sliding=false;grapple=null;grappleCD=0;wallrun=0;coyote=.12;
  if(mode!=='training'){
    const count=stage===1?3:stage%5===0?5:stage>=13?7:stage>=9?6:stage%3===0?5:4;
    const types:Kind[]=['RUNNER','RUNNER','SNIPER','DRONE','TANK','INTERCEPTOR'];
@@ -324,7 +335,7 @@ function buildExpedition(seed:string){
  const column=new THREE.Mesh(new THREE.CylinderGeometry(.12,.32,5.8,10),new THREE.MeshBasicMaterial({color:0x48d8ff,transparent:true,opacity:.42}));column.position.y=3;beacon.add(column);
  world.add(beacon);
  const extractionLight=new THREE.PointLight(0x48d8ff,24,20);extractionLight.position.set(0,3,layout.extraction.z);scene.add(extractionLight);arenaLights.push(extractionLight);
- position.set(0,1.7,14);velocity.set(0,0,0);airJumps=1;pulseCooldown=0;yaw=0;pitch=0;camera.position.copy(position);camera.rotation.set(pitch,yaw,0,'YXZ');
+ position.set(0,1.7,14);lastSafePosition.copy(position);velocity.set(0,0,0);airJumps=1;pulseCooldown=0;yaw=0;pitch=0;camera.position.copy(position);camera.rotation.set(pitch,yaw,0,'YXZ');
  hp=maxHp;grounded=true;sliding=false;grapple=null;grappleCD=0;wallrun=0;coyote=.12;extracting=false;extractionProgress=0;
  $('#bossbar').classList.add('hidden');hud();updateObjective();
 }
@@ -376,7 +387,7 @@ function startExpedition(daily=false){lastRunWasExpedition=true;lastRunWasDailyE
 function start(training=false,daily=false){lastRunWasExpedition=false;trainingRun=training;dailySession=daily&&!training;dailyRun=dailySession;sectorClearStarted=false;sectorClearDelay=0;hitstopRemaining=0;slowMotionRemaining=0;slideJumpCarry=0;airDashCooldown=0;airDashCarry=0;airDashStyleTime=0;dailyModifier=Math.floor(Date.now()/86400000)%dailyContracts.length;stage=1;score=0;kills=0;maxHp=100;hp=maxHp;damageBoost=1;fireRateBoost=1;abilityRegen=8;combo=1;bestCombo=1;comboTime=0;distance=0;ability=100;reloadTime=0;reloadWeapon=null;mag={ARC:12,BREACH:6,RAIL:4};reserve={ARC:72,BREACH:30,RAIL:20};mode=training?'training':'playing';if(!training){save.runs++;persist();}buildArena();ui(mode);note(dailyRun?'DAILY CONTRACT // '+dailyContracts[dailyModifier]:training?'TRAINING // PRACTICE MOVEMENT':'OBJECTIVE // ELIMINATE ALL HOSTILES');updateObjective();}
 function endRun(){if(mode==='expedition'){career=updateCareer(career,draft=>{draft.failedExpeditions+=1;draft.totalKills+=kills;draft.totalDistance+=Math.floor(distance);draft.bestScore=Math.max(draft.bestScore,Math.floor(score));draft.bestFlow=Math.max(draft.bestFlow,bestCombo);draft.bestSpeed=Math.max(draft.bestSpeed,bestSpeed);});$('#deathcopy').textContent='EXPEDITION FAILED // '+expeditionUnbanked+' UNBANKED DATA LOST // '+kills+' HOSTILES NEUTRALIZED.';ui('dead');return;}save.highestStage=Math.max(save.highestStage,stage);save.highestScore=Math.max(save.highestScore,Math.floor(score));save.kills+=kills;save.distance+=Math.floor(distance);save.longestCombo=Math.max(save.longestCombo,bestCombo);save.highestSpeed=Math.max(save.highestSpeed,bestSpeed);persist();career=recordLegacyRun(career,{sectors:stage,score,kills,distance,bestFlow:bestCombo,bestSpeed});$('#deathcopy').textContent='STAGE '+stage+' // SCORE '+Math.floor(score).toLocaleString()+' // '+kills+' ELIMINATIONS // BEST FLOW x'+bestCombo.toFixed(1)+'. PERSONAL BEST: '+save.highestScore.toLocaleString()+'.';ui('dead');}
 function nextStage(choice:string){sectorClearStarted=false;sectorClearDelay=0;slowMotionRemaining=0;hitstopRemaining=0;airDashCooldown=0;airDashCarry=0;airDashStyleTime=0;if(choice==='damage')damageBoost=Math.min(1.8,damageBoost*1.12);if(choice==='fire')fireRateBoost=Math.min(1.7,fireRateBoost*1.12);if(choice==='health'){maxHp=Math.min(160,maxHp+15);hp=Math.min(maxHp,hp+30);}if(choice==='ability')abilityRegen=Math.min(20,abilityRegen+3);stage++;score+=stage*100;hp=Math.min(maxHp,hp+18);ability=Math.min(100,ability+25);mag.ARC=Math.min(12,mag.ARC+5);mag.BREACH=Math.min(6,mag.BREACH+2);mag.RAIL=Math.min(4,mag.RAIL+1);reserve.ARC=Math.min(120,reserve.ARC+14);reserve.BREACH=Math.min(48,reserve.BREACH+7);reserve.RAIL=Math.min(32,reserve.RAIL+5);mode='playing';buildArena();ui('playing');note('SECTOR '+String(stage).padStart(2,'0')+' // INCOMING');updateObjective();}
-function hurt(n:number){if((mode!=='playing'&&mode!=='expedition')||hurtIFrames>0)return;if(dailyRun&&dailyModifier===1)n*=1.35;hurtIFrames=.72;hp-=n;$('#hud').classList.add('taking-damage');setTimeout(()=>$('#hud').classList.remove('taking-damage'),180);sound(65,.13,'sawtooth',.06);if(hp<=0)endRun();hud();}
+function hurt(n:number){if((mode!=='playing'&&mode!=='expedition')||hurtIFrames>0)return;if(mode==='expedition'&&career.unlockedModules.includes('impact-lining')&&impactBufferReady){n*=.65;impactBufferReady=false;note('IMPACT LINING // FIRST HIT REDUCED');}if(dailyRun&&dailyModifier===1)n*=1.35;hurtIFrames=.72;hp-=n;$('#hud').classList.add('taking-damage');setTimeout(()=>$('#hud').classList.remove('taking-damage'),180);sound(65,.13,'sawtooth',.06);if(hp<=0)endRun();hud();}
 function damage(e:Enemy,n:number,critical=false,styleOverride=''){
  n*=flowDamageMultiplier();
  if(critical){sound(FEEL.critPitch,.1,'triangle',.065);$('#crosshair').classList.add('critical-hit');}
@@ -458,7 +469,7 @@ function updateEnemies(dt:number){
    e.root.lookAt(position.x,p.y+.5,position.z);if(e.healthBar.visible)e.healthBar.lookAt(camera.position);
  }
 }
-function collides(p:THREE.Vector3){const r=.34,b=new THREE.Box3(new THREE.Vector3(p.x-r,p.y-1.66,p.z-r),new THREE.Vector3(p.x+r,p.y,p.z+r));return colliders.some(c=>c.intersectsBox(b));}
+function collides(p:THREE.Vector3){const r=.34,minY=p.y-1.66,maxY=p.y-.08,minX=p.x-r,maxX=p.x+r,minZ=p.z-r,maxZ=p.z+r;return colliders.some(c=>c.max.y>minY&&c.min.y<maxY&&c.max.x>minX&&c.min.x<maxX&&c.max.z>minZ&&c.min.z<maxZ);}
 function movePlayer(dt:number){
  camera.getWorldDirection(forward);forward.y=0;forward.normalize();right.crossVectors(forward,new THREE.Vector3(0,1,0)).normalize();
  move.set(0,0,0);if(keys.has('KeyW'))move.add(forward);if(keys.has('KeyS'))move.sub(forward);if(keys.has('KeyD'))move.add(right);if(keys.has('KeyA'))move.sub(right);if(move.lengthSq())move.normalize();
@@ -469,15 +480,15 @@ function movePlayer(dt:number){
  if(sprint&&!slideNeedsRelease&&grounded&&move.lengthSq()>.1&&hs>6.5&&!sliding&&slideCooldown<=0){sliding=true;slideNeedsRelease=true;slideTime=.82;velocity.x*=1.13;velocity.z*=1.13;sound(105,.11,'triangle',.035);note('SLIDE // KEEP YOUR MOMENTUM');}
  if(sliding){slideTime-=dt;if(slideTime<=0||!grounded){sliding=false;slideCooldown=.22;}}
  if(slideCooldown>0)slideCooldown=Math.max(0,slideCooldown-dt);
- const accel=grounded?(sliding?5.5:sprint?38:29):FEEL.airStrafeAcceleration;
+ const accel=grounded?(sliding?4.5:sprint?28:23):FEEL.airStrafeAcceleration*(career.unlockedModules.includes('air-control')?1.15:1);
  if(move.lengthSq()){
    const steer=sliding?.32:1;
    velocity.x+=move.x*accel*dt*steer;velocity.z+=move.z*accel*dt*steer;
  }else if(grounded){
-   const drag=Math.exp(-(sliding?1.05: sprint?2.8:7.2)*dt);
+   const drag=Math.exp(-(sliding?1.35: sprint?3.4:7.2)*dt);
    velocity.x*=drag;velocity.z*=drag;
  }
- const max=overdrive>0?28:airDashCarry>0?FEEL.airDashSpeedCap:slideJumpCarry>0?FEEL.slideJumpSpeedCap:sliding?23:sprint?21:12.5;
+ const max=overdrive>0?21.5:airDashCarry>0?FEEL.airDashSpeedCap:slideJumpCarry>0?FEEL.slideJumpSpeedCap:sliding?18:sprint?16.5:11.5;
  const speedNow=Math.hypot(velocity.x,velocity.z);
  if(speedNow>max){const scale=max/speedNow;velocity.x*=scale;velocity.z*=scale;}
  if(grapple){
@@ -493,9 +504,27 @@ function movePlayer(dt:number){
    grounded=false;coyote=0;wallrun=0;jumpBuffer=0;
    sound(airJump?520:360,.075,'triangle',.035);if(airJump)note('AIR JUMP // SECOND IMPULSE');
  }
- const next=position.clone().addScaledVector(velocity,dt),horizontal=next.clone();horizontal.y=position.y;
- if(!collides(horizontal)){position.x=next.x;position.z=next.z;}
- else{velocity.x*=sliding?.55:.22;velocity.z*=sliding?.55:.22;sliding=false;}
+ const stepCount=Math.max(1,Math.ceil(Math.max(Math.abs(velocity.x*dt),Math.abs(velocity.z*dt))/.18));
+ const stepX=velocity.x*dt/stepCount,stepZ=velocity.z*dt/stepCount;
+ for(let step=0;step<stepCount;step++){
+   collisionProbe.set(position.x+stepX,position.y,position.z);
+   if(!collides(collisionProbe))position.x+=stepX;else{velocity.x=0;sliding=false;}
+   collisionProbe.set(position.x,position.y,position.z+stepZ);
+   if(!collides(collisionProbe))position.z+=stepZ;else{velocity.z=0;sliding=false;}
+ }
+ if(collides(position)){
+   let recovered=false;
+   for(let radius=.12;radius<=1.2&&!recovered;radius+=.12){
+     for(let direction=0;direction<8;direction++){
+       const angle=direction*Math.PI/4;collisionProbe.set(position.x+Math.cos(angle)*radius,position.y,position.z+Math.sin(angle)*radius);
+       if(!collides(collisionProbe)){position.x=collisionProbe.x;position.z=collisionProbe.z;recovered=true;break;}
+     }
+   }
+   if(!recovered){position.copy(lastSafePosition);velocity.x=0;velocity.z=0;note('MOMENTUM RECOVERY // POSITION RESET');}
+   else{velocity.x*=.25;velocity.z*=.25;note('WALL RECOVERY // MOMENTUM REDIRECTED');}
+   sliding=false;grapple=null;
+ }
+ if(!collides(position))lastSafePosition.copy(position);
  const fallSpeed=Math.abs(velocity.y),y=position.y+velocity.y*dt;let support:THREE.Box3|undefined;
  if(velocity.y<=0){
    const feet=position.y-1.7,nextFeet=y-1.7;
@@ -523,7 +552,7 @@ function movePlayer(dt:number){
  const crouch=sliding?-.28:0;
  camera.position.set(position.x,position.y+crouch+bob+landingKick,position.z);
  camera.rotation.set(pitch,yaw,roll,'YXZ');
- const targetFov=clamp(baseFov+(reduced?0:speed*FEEL.speedFovScale+(sprint&&grounded?2:0)+(grapple?3:0)),75,115);
+ const targetFov=clamp(baseFov+(reduced?0:speed*FEEL.speedFovScale+(sprint&&grounded?1:0)+(grapple?2:0)),75,108);
  camera.fov=THREE.MathUtils.damp(camera.fov,targetFov,5,dt);camera.updateProjectionMatrix();
  viewModel.position.y=THREE.MathUtils.damp(viewModel.position.y,-.3+(sliding?-.1:0)+Math.sin(walkPhase*2)*Math.min(.025,speed*.0009)+landingKick*.5,10,dt);
  viewModel.position.x=THREE.MathUtils.damp(viewModel.position.x,.34+Math.sin(walkPhase)*Math.min(.025,speed*.0008),8,dt);
