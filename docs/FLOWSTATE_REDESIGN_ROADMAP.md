@@ -33,9 +33,11 @@ Combat is a pressure system and a movement tool, not the sole objective.
 - [x] Add recoverable data shards.
 - [x] Add hold-to-extract interaction and persistent extract/fail results.
 - [x] Remove the between-sector upgrade interruption from the expedition path.
-- [x] Add the persistent extraction compass, directional arrow, distance, and hold-to-extract progress indicator.
-- [x] Replace all-or-nothing horizontal collision with substepped axis resolution, wall sliding, depenetration, and last-safe-ground recovery.
+- [x] Add the persistent extraction compass, directional arrow, live distance, room progress, and hold-to-extract progress indicator.
+- [x] Add first-extraction onboarding that explains the beacon, hold duration, and unbanked-data loss.
+- [x] Replace all-or-nothing horizontal collision with substepped axis resolution, wall sliding, iterative minimum-translation depenetration, and last-safe-position recovery.
 - [x] Reduce sprint, slide, grapple, and dash speed ceilings and camera FOV amplification.
+- [x] Add momentum-sensitive kinetic gates on optional catwalk routes; sprint through to break them and bank bonus data.
 - [ ] Playtest and tune enemy pressure, shard placement, and traversal reachability.
 
 ### Phase 3 — Echo system (core loop implemented)
@@ -60,8 +62,8 @@ Combat is a pressure system and a movement tool, not the sole objective.
 - [x] Add shootable volatile canisters that chain-damage enemies, destroy nearby projectiles, and launch the player when close.
 - [x] Allow kinetic pulse to detonate volatile canisters.
 - [x] Retain grapple anchors and kinetic launch pads as traversal tools.
-- [ ] Add momentum-sensitive barriers and enemy archetypes with distinct movement interactions.
-- [ ] Add more combat/traversal synergies without relying on enemy health inflation.
+- [x] Add optional kinetic barriers that require a committed high-speed impact and reward the player with data.
+- [ ] Add enemy archetypes with distinct movement interactions and more combat/traversal synergies without relying on enemy health inflation.
 
 ### Phase 6 — Competitive systems (daily foundation implemented)
 - [x] Daily Fractures use a shared deterministic daily seed and daily modifier.
