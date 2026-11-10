@@ -57,6 +57,7 @@ Deploy the generated `dist/` directory to GitHub Pages or Vercel Hobby. No paid 
 - A three-checkpoint Echo Time Trial with medal grades, a previous-run ghost, and a saved local personal best.
 - Shootable volatile canisters chain-damage nearby enemies, destroy projectiles, and launch the player; kinetic pulse can trigger them.
 - Optional kinetic gates on elevated catwalk routes can be shattered with a committed high-speed impact for bonus data.
+- The final room introduces an Anchor unit: it telegraphs a gravity pulse that pulls the player inward unless they dash out of range.
 - Local-first versioned career profile with migration from the previous `flowstate-career-v1` save.
 - Career Archive, Research Network, and daily challenge records.
 - Legacy arena combat code remains available as the basis for training and future combat iteration.
