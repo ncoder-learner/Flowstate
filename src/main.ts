@@ -348,7 +348,7 @@ function updateExpedition(dt:number){
 function attemptExtraction(){
  if(!expeditionLayout||mode!=='expedition')return;
  const distanceToBeacon=Math.hypot(position.x-expeditionLayout.extraction.x,position.z-expeditionLayout.extraction.z);
- if(distanceToBeacon>3.6){if(extractionPromptCooldown<=0){note('EXTRACTION BEACON // '+Math.ceil(distanceToBeacon)+' M AWAY');extractionPromptCooldown=.8;}return;}
+ if(distanceToBeacon>3.6){grappleStart();return;}
  if(extracting)return;
  extracting=true;extractionProgress=0;note('HOLD E // SECURING EXTRACTION');
 }
