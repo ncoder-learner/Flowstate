@@ -42,6 +42,7 @@ Combat is a pressure system and a movement tool, not the sole objective.
 - [x] Record timestamped player transforms at 10 Hz, bounded to 90 seconds.
 - [x] Save a versioned Echo locally after successful extraction.
 - [x] Replay a translucent Echo with interpolation on the same deterministic daily layout.
+- [x] Show live separation from the previous-run Echo as a simple race telemetry readout.
 - [x] Add an Echo Relay: a prior run's ghost must pass through its activation radius to recover bonus data.
 - [ ] Add ghost racing, route splits, and time comparison.
 - [ ] Expand Echo interactions to pressure plates, timed doors, and multi-relay puzzles.
@@ -68,8 +69,9 @@ Combat is a pressure system and a movement tool, not the sole objective.
 
 ### Phase 7 — Content expansion (foundation in place)
 - [x] Four industrial rooms with deterministic cover variants, catwalks, grapple anchors, shard routes, and Echo relay.
+- [x] Add a hidden final-room catwalk cache with a persistent discovery achievement.
 - [ ] Add Vertical, Fracture, and Core regions.
-- [ ] Add secrets, boss encounters, and experimental abilities.
+- [ ] Add additional secrets, boss encounters, and experimental abilities.
 - [ ] Combine hand-authored landmark rooms through validated procedural routing.
 
 ### Phase 8 — Release polish (ongoing)
